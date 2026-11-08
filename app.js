@@ -364,6 +364,7 @@
     if (openBtn) {
       openBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        ensureAudioContext();
         turnToPage(1, 'forward');
       });
     }
@@ -656,30 +657,70 @@
 
   function playPaperTurnSound() {
     try {
+      ensureAudioContext();
       if (!audioCtx || audioCtx.state !== 'running') return;
-      const duration = 0.09;
-      const bufferSize = audioCtx.sampleRate * duration;
-      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+
+      const now = audioCtx.currentTime;
+      const sampleRate = audioCtx.sampleRate;
+
+      // 3-Stage Realistic Book Page Turn Acoustic Model:
+      // Stage 1 (0.00s - 0.04s): Finger lifting the paper corner (crisp high-mid paper grain catch)
+      // Stage 2 (0.02s - 0.24s): Paper sliding & bending across the page (sweeping formant filter 700Hz -> 2400Hz -> 900Hz)
+      // Stage 3 (0.20s - 0.30s): Soft paper-on-paper settle at the spine (warm low-mid cushion thump)
+      const totalDur = 0.32;
+      const bufLen = Math.floor(sampleRate * totalDur);
+      const buffer = audioCtx.createBuffer(1, bufLen, sampleRate);
       const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.sin((i / bufferSize) * Math.PI);
+
+      // Generate textured paper fiber friction noise (filtered pink/velvet blend)
+      let b0 = 0, b1 = 0, b2 = 0;
+      for (let i = 0; i < bufLen; i++) {
+        const t = i / sampleRate;
+        const white = Math.random() * 2 - 1;
+        b0 = 0.995 * b0 + white * 0.045;
+        b1 = 0.960 * b1 + white * 0.095;
+        b2 = 0.820 * b2 + white * 0.210;
+        const pink = b0 + b1 + b2 + white * 0.18;
+
+        // Multi-stage amplitude contour matching physical page flip speed
+        // 1) Initial corner flick + 2) Main slide + 3) Soft landing
+        const flickEnv = Math.exp(-Math.pow((t - 0.018) / 0.012, 2)) * 0.55;
+        const slideEnv = Math.sin(Math.min(1, Math.max(0, (t - 0.01) / 0.24)) * Math.PI) * 0.95;
+        const settleEnv = Math.exp(-Math.pow((t - 0.245) / 0.028, 2)) * 0.42;
+
+        // Subtle micro-crackle of paper fibers
+        const fiberGrain = 0.85 + 0.15 * Math.sin(t * 420 + Math.sin(t * 95) * 3);
+
+        data[i] = pink * (flickEnv + slideEnv + settleEnv) * fiberGrain;
       }
-      const noise = audioCtx.createBufferSource();
-      noise.buffer = buffer;
 
-      const filter = audioCtx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.value = 1200;
-      filter.Q.value = 0.7;
+      const src = audioCtx.createBufferSource();
+      src.buffer = buffer;
 
-      const gain = audioCtx.createGain();
-      gain.gain.setValueAtTime(0.035, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      // Formant Filter 1: Moving paper resonance (sweeps up as page arches, down as it lays flat)
+      const sweepFilter = audioCtx.createBiquadFilter();
+      sweepFilter.type = 'bandpass';
+      sweepFilter.Q.setValueAtTime(1.15, now);
+      sweepFilter.frequency.setValueAtTime(680, now);
+      sweepFilter.frequency.exponentialRampToValueAtTime(2200, now + 0.11);
+      sweepFilter.frequency.exponentialRampToValueAtTime(780, now + 0.28);
 
-      noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(audioCtx.destination);
-      noise.start();
+      // Formant Filter 2: High-pass to remove muddy rumble while keeping paper body warmth
+      const bodyFilter = audioCtx.createBiquadFilter();
+      bodyFilter.type = 'highpass';
+      bodyFilter.frequency.setValueAtTime(280, now);
+
+      const masterGain = audioCtx.createGain();
+      masterGain.gain.setValueAtTime(0.28, now);
+      masterGain.gain.exponentialRampToValueAtTime(0.001, now + totalDur);
+
+      src.connect(bodyFilter);
+      bodyFilter.connect(sweepFilter);
+      sweepFilter.connect(masterGain);
+      masterGain.connect(audioCtx.destination);
+
+      src.start(now);
+      src.stop(now + totalDur);
     } catch (e) {}
   }
 
