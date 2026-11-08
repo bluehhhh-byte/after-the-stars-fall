@@ -171,6 +171,11 @@
   // =========================================================================
   function buildCoverPageObject() {
     const novel = window.NOVEL_DATA;
+    // Format title into two balanced lines if it matches "별이 지고 난 뒤에도"
+    let formattedTitle = escapeHtml(novel.title);
+    if (novel.title === '별이 지고 난 뒤에도') {
+      formattedTitle = `<span class="title-line-1">별이 지고 난</span><span class="title-line-2">뒤에도</span>`;
+    }
     return {
       type: 'cover',
       chapterId: 0,
@@ -180,23 +185,31 @@
       html: `
         <div class="cover-layout">
           <div class="cover-frame">
-            <span class="cover-badge">WEB NOVEL EDITION</span>
-            <div class="cover-art">
-              <div class="cover-star-orb"></div>
-              <div class="cover-ripple"></div>
+            <div class="cover-top-section">
+              <div class="cover-ornament-line"></div>
+              <div class="cover-title-block">
+                <h1>${formattedTitle}</h1>
+              </div>
             </div>
-            <div class="cover-title-block">
-              <h1>${novel.title}</h1>
+
+            <div class="cover-center-section">
+              <div class="cover-art">
+                <div class="cover-star-orb"></div>
+                <div class="cover-ripple"></div>
+                <div class="cover-ripple-delay"></div>
+              </div>
               <p class="cover-epigraph">
-                “가끔 길을 잃는 별들이 있어요.<br/>
-                여기는 잊지 못한 사람들이 오는 곳이니까요.”
+                <span class="epigraph-line">“가끔 길을 잃는 별들이 있어요.</span>
+                <span class="epigraph-line epigraph-gap">여기는 잊지 못한 사람들이</span>
+                <span class="epigraph-line">오는 곳이니까요.”</span>
               </p>
             </div>
+
             <div class="cover-cta-wrap">
               <button type="button" class="btn-open-book" data-action="open-first-chapter">
                 책 펼치기 &rarr;
               </button>
-              <span class="cover-chapter-meta">전 ${novel.chapterCount}장 완결 · 모바일 집중 독서 에디션</span>
+              <span class="cover-date-meta">2026. 11. 9. 작성.</span>
             </div>
           </div>
         </div>
@@ -677,63 +690,152 @@
     if (state.bgmActive) {
       if (bgmNodes) {
         try {
-          bgmNodes.masterGain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.5);
+          if (bgmNodes.dropletInterval) clearInterval(bgmNodes.dropletInterval);
+          bgmNodes.masterGain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6);
           setTimeout(() => {
-            try { bgmNodes.rainSource.stop(); bgmNodes.padOsc1.stop(); bgmNodes.padOsc2.stop(); } catch (e) {}
+            try {
+              bgmNodes.windSource.stop();
+              bgmNodes.windLfo.stop();
+              bgmNodes.padOsc1.stop();
+              bgmNodes.padOsc2.stop();
+              bgmNodes.padOsc3.stop();
+            } catch (e) {}
             bgmNodes = null;
-          }, 550);
+          }, 650);
         } catch (e) {}
       }
       state.bgmActive = false;
       el.btnToggleBgm.classList.remove('active');
     } else {
-      // Create gentle rain + warm night chord (A minor 9th ambient pad)
+      // Mystical Pond Night Soundscape:
+      // 1) Slow, soft night breeze across the pond (low-passed & LFO-modulated warm breeze, NO harsh hiss)
+      // 2) Ethereal warm harmonic chord pad (Fmaj7#11 / Am9 dreamy resonance)
+      // 3) Occasional gentle water droplets & ripples echoing on the pond surface
       const masterGain = audioCtx.createGain();
       masterGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-      masterGain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 1.5);
+      masterGain.gain.linearRampToValueAtTime(0.22, audioCtx.currentTime + 2.0);
       masterGain.connect(audioCtx.destination);
 
-      // Soft pink-ish rain noise
-      const bufferSize = audioCtx.sampleRate * 3;
-      const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-      const output = noiseBuffer.getChannelData(0);
-      let b0 = 0, b1 = 0, b2 = 0;
+      // --- 1. Soft Night Breeze (Deep Bandpass + Slow Breathing LFO) ---
+      const bufferSize = audioCtx.sampleRate * 5;
+      const breezeBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const output = breezeBuffer.getChannelData(0);
+      let lastOut = 0.0;
       for (let i = 0; i < bufferSize; i++) {
+        // Brownian/Red noise (very smooth, no high-frequency static hiss)
         const white = Math.random() * 2 - 1;
-        b0 = 0.997 * b0 + white * 0.029;
-        b1 = 0.985 * b1 + white * 0.032;
-        b2 = 0.950 * b2 + white * 0.048;
-        output[i] = (b0 + b1 + b2) * 0.35;
+        output[i] = (lastOut + (0.015 * white)) / 1.015;
+        lastOut = output[i];
+        output[i] *= 1.8;
       }
-      const rainSource = audioCtx.createBufferSource();
-      rainSource.buffer = noiseBuffer;
-      rainSource.loop = true;
+      const windSource = audioCtx.createBufferSource();
+      windSource.buffer = breezeBuffer;
+      windSource.loop = true;
 
-      const rainFilter = audioCtx.createBiquadFilter();
-      rainFilter.type = 'lowpass';
-      rainFilter.frequency.value = 950;
-      rainSource.connect(rainFilter);
-      rainFilter.connect(masterGain);
+      const windFilter = audioCtx.createBiquadFilter();
+      windFilter.type = 'bandpass';
+      windFilter.frequency.value = 260;
+      windFilter.Q.value = 1.8;
 
-      // Warm subtle night drone pad
+      // Slow LFO to make the breeze gently swell and fade every ~7 seconds
+      const windLfo = audioCtx.createOscillator();
+      windLfo.type = 'sine';
+      windLfo.frequency.value = 0.14;
+      const windLfoGain = audioCtx.createGain();
+      windLfoGain.gain.value = 110;
+      windLfo.connect(windLfoGain);
+      windLfoGain.connect(windFilter.frequency);
+
+      const windGain = audioCtx.createGain();
+      windGain.gain.value = 0.14;
+      windSource.connect(windFilter);
+      windFilter.connect(windGain);
+      windGain.connect(masterGain);
+
+      // --- 2. Mystical Starlight Pad (Soft Sine Harmonics) ---
       const padOsc1 = audioCtx.createOscillator();
       const padOsc2 = audioCtx.createOscillator();
+      const padOsc3 = audioCtx.createOscillator();
       padOsc1.type = 'sine';
       padOsc2.type = 'sine';
-      padOsc1.frequency.value = 220; // A3
-      padOsc2.frequency.value = 329.63; // E4
+      padOsc3.type = 'triangle';
+      padOsc1.frequency.value = 174.61; // F3
+      padOsc2.frequency.value = 261.63; // C4
+      padOsc3.frequency.value = 329.63; // E4
+
+      const padFilter = audioCtx.createBiquadFilter();
+      padFilter.type = 'lowpass';
+      padFilter.frequency.value = 480;
 
       const padGain = audioCtx.createGain();
-      padGain.gain.value = 0.12;
-      padOsc1.connect(padGain);
-      padOsc2.connect(padGain);
+      padGain.gain.value = 0.045;
+      padOsc1.connect(padFilter);
+      padOsc2.connect(padFilter);
+      padOsc3.connect(padFilter);
+      padFilter.connect(padGain);
       padGain.connect(masterGain);
 
-      rainSource.start();
+      // --- 3. Tranquil Pond Water Droplets & Ripples ---
+      function triggerWaterDrop() {
+        if (!audioCtx || !state.bgmActive) return;
+        const now = audioCtx.currentTime;
+
+        // Primary water drop (resonant sine pitch-bend upward like a real water plop)
+        const dropOsc = audioCtx.createOscillator();
+        const dropGain = audioCtx.createGain();
+        dropOsc.type = 'sine';
+
+        // Pick pentatonic/mystical water frequencies
+        const baseFreqs = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+        const f0 = baseFreqs[Math.floor(Math.random() * baseFreqs.length)];
+        dropOsc.frequency.setValueAtTime(f0 * 0.72, now);
+        dropOsc.frequency.exponentialRampToValueAtTime(f0 * 1.18, now + 0.085);
+
+        dropGain.gain.setValueAtTime(0.0001, now);
+        dropGain.gain.linearRampToValueAtTime(0.075, now + 0.012);
+        dropGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+
+        dropOsc.connect(dropGain);
+        dropGain.connect(masterGain);
+        dropOsc.start(now);
+        dropOsc.stop(now + 0.45);
+
+        // Soft secondary ripple echo
+        if (Math.random() > 0.35) {
+          const echoOsc = audioCtx.createOscillator();
+          const echoGain = audioCtx.createGain();
+          echoOsc.type = 'sine';
+          echoOsc.frequency.setValueAtTime(f0 * 1.18, now + 0.16);
+          echoOsc.frequency.exponentialRampToValueAtTime(f0 * 1.32, now + 0.25);
+
+          echoGain.gain.setValueAtTime(0.0001, now + 0.16);
+          echoGain.gain.linearRampToValueAtTime(0.028, now + 0.18);
+          echoGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
+
+          echoOsc.connect(echoGain);
+          echoGain.connect(masterGain);
+          echoOsc.start(now + 0.16);
+          echoOsc.stop(now + 0.68);
+        }
+      }
+
+      windSource.start();
+      windLfo.start();
       padOsc1.start();
       padOsc2.start();
+      padOsc3.start();
 
-      bgmNodes = { masterGain, rainSource, padOsc1, padOsc2 };
+      // Play initial gentle water drop and schedule organic pond ripples
+      setTimeout(triggerWaterDrop, 300);
+      const dropletInterval = setInterval(() => {
+        if (!state.bgmActive) return;
+        triggerWaterDrop();
+        if (Math.random() > 0.6) {
+          setTimeout(triggerWaterDrop, 450 + Math.random() * 600);
+        }
+      }, 2200);
+
+      bgmNodes = { masterGain, windSource, windLfo, padOsc1, padOsc2, padOsc3, dropletInterval };
       state.bgmActive = true;
       el.btnToggleBgm.classList.add('active');
     }
@@ -1049,3 +1151,4 @@
     init();
   }
 })();
+
