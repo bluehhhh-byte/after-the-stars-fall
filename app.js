@@ -34,7 +34,9 @@
     isFlipping: false,
     uiVisible: true,
     bookmarks: [], // Array of { chapterId, paraIndex, chapterTitle, snippet, savedAt }
-    bgmActive: false
+    ttsStatus: 'stopped', // 'stopped' | 'playing' | 'paused'
+    ttsRate: 1.0,
+    ttsParaOffset: 0
   };
 
   // DOM Elements
@@ -88,7 +90,15 @@
     btnToggleMode: document.getElementById('btnToggleMode'),
     modeIcon: document.getElementById('modeIcon'),
     modeText: document.getElementById('modeText'),
-    btnToggleBgm: document.getElementById('btnToggleBgm'),
+    btnOpenTts: document.getElementById('btnOpenTts'),
+    ttsPlayerBar: document.getElementById('ttsPlayerBar'),
+    ttsWaveDot: document.getElementById('ttsWaveDot'),
+    ttsStatusText: document.getElementById('ttsStatusText'),
+    btnTtsPlayPause: document.getElementById('btnTtsPlayPause'),
+    ttsPlayIcon: document.getElementById('ttsPlayIcon'),
+    btnTtsStop: document.getElementById('btnTtsStop'),
+    btnTtsSpeed: document.getElementById('btnTtsSpeed'),
+    btnTtsClose: document.getElementById('btnTtsClose'),
     resumeToast: document.getElementById('resumeToast'),
     resumeToastMsg: document.getElementById('resumeToastMsg'),
     btnResumeYes: document.getElementById('btnResumeYes'),
@@ -392,14 +402,22 @@
     });
   }
 
-  function turnToPage(targetIndex, directionOverride) {
+  function turnToPage(targetIndex, directionOverride, onCompleteCallback) {
     if (state.isFlipping) return;
     const clamped = Math.max(0, Math.min(state.pages.length - 1, targetIndex));
-    if (clamped === state.currentPageIndex) return;
+    if (clamped === state.currentPageIndex) {
+      if (onCompleteCallback) onCompleteCallback();
+      return;
+    }
 
     const direction = directionOverride || (clamped > state.currentPageIndex ? 'forward' : 'backward');
 
-    // If jumping multiple pages via TOC/slider, or in reduced motion, do quick flip
+    // If user manually turns page while TTS is active (and not triggered by TTS auto-advance), restart TTS on new page
+    const isManualTurnDuringTts = !onCompleteCallback && state.ttsStatus === 'playing';
+    if (isManualTurnDuringTts) {
+      cancelSpeechInternal();
+    }
+
     const oldHtml = buildFullPageHtml(state.currentPageIndex);
     const newHtml = buildFullPageHtml(clamped);
 
@@ -433,6 +451,12 @@
       el.flipLayer.classList.add('hidden');
       el.flipCard.classList.remove('anim-forward', 'anim-backward');
       state.isFlipping = false;
+      if (onCompleteCallback) {
+        onCompleteCallback();
+      } else if (isManualTurnDuringTts) {
+        state.ttsParaOffset = 0;
+        speakCurrentParagraph();
+      }
     }, 520);
   }
 
@@ -628,6 +652,228 @@
         turnToPage(targetPage);
       });
     });
+  }
+
+  // =========================================================================
+  // 5B. TTS Audiobook Engine (Soft Male Voice, Auto Page Flip, Play/Pause/Stop)
+  // =========================================================================
+  const synth = window.speechSynthesis || null;
+  let cachedMaleVoice = null;
+  let currentUtterance = null;
+  let ttsCancelFlag = false;
+
+  function selectBestKoreanMaleVoice() {
+    if (!synth) return null;
+    const voices = synth.getVoices() || [];
+    const koVoices = voices.filter((v) => v.lang && (v.lang.toLowerCase().includes('ko') || v.name.includes('한국어') || v.name.includes('Korean')));
+    if (koVoices.length === 0) return null;
+
+    // Priority 1: Natural / Neural Male Korean voices (e.g., Microsoft InJoon Online Natural, Google/Apple Male)
+    const maleKeywords = ['injoon', '인준', 'hyunsu', '현수', 'bongjin', '봉진', 'gookmin', '국민', 'male', '남성', '민수', '태민', 'yuna-male'];
+    for (const kw of maleKeywords) {
+      const found = koVoices.find((v) => v.name.toLowerCase().includes(kw));
+      if (found) return found;
+    }
+
+    // Priority 2: High-quality Online/Natural Korean voice (we tune pitch to warm male baritone if needed)
+    const naturalVoice = koVoices.find((v) => v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('online') || v.name.includes('Google'));
+    return naturalVoice || koVoices[0];
+  }
+
+  function isLikelyMaleVoice(voice) {
+    if (!voice) return false;
+    const n = voice.name.toLowerCase();
+    return ['injoon', '인준', 'hyunsu', '현수', 'bongjin', '봉진', 'gookmin', '국민', 'male', '남성'].some((kw) => n.includes(kw));
+  }
+
+  if (synth && typeof synth.onvoiceschanged !== 'undefined') {
+    synth.onvoiceschanged = () => {
+      cachedMaleVoice = selectBestKoreanMaleVoice();
+    };
+  }
+
+  function clearTtsHighlight() {
+    document.querySelectorAll('.tts-reading-active').forEach((node) => {
+      node.classList.remove('tts-reading-active');
+    });
+  }
+
+  function highlightCurrentParagraph(offset) {
+    clearTtsHighlight();
+    const paraNodes = el.currentPage.querySelectorAll('p.novel-para');
+    if (paraNodes && paraNodes[offset]) {
+      paraNodes[offset].classList.add('tts-reading-active');
+    }
+  }
+
+  function updateTtsUi() {
+    const isPlaying = state.ttsStatus === 'playing';
+    const isPaused = state.ttsStatus === 'paused';
+
+    el.btnOpenTts.classList.toggle('active', isPlaying || isPaused);
+    el.ttsWaveDot.classList.toggle('speaking', isPlaying);
+    el.ttsPlayIcon.textContent = isPlaying ? '⏸' : '▶';
+    el.btnTtsSpeed.textContent = state.ttsRate.toFixed(1) + 'x';
+
+    const page = state.pages[state.currentPageIndex];
+    const chapLabel = page && page.type !== 'cover' ? page.chapterNumber : '1장';
+    if (isPlaying) {
+      el.ttsStatusText.textContent = `${chapLabel} 낭독 중 (${state.currentPageIndex}쪽)`;
+    } else if (isPaused) {
+      el.ttsStatusText.textContent = `일시정지됨 (${state.currentPageIndex}쪽)`;
+    } else {
+      el.ttsStatusText.textContent = `낭독 대기 (${state.currentPageIndex || 1}쪽)`;
+    }
+  }
+
+  function cancelSpeechInternal() {
+    ttsCancelFlag = true;
+    if (synth) {
+      synth.cancel();
+    }
+    currentUtterance = null;
+  }
+
+  function speakCurrentParagraph() {
+    if (!synth) {
+      alert('이 브라우저는 음성 낭독(TTS)을 지원하지 않습니다.');
+      return;
+    }
+
+    // If on Cover Page (0), automatically flip to Page 1 first
+    if (state.currentPageIndex === 0) {
+      state.ttsStatus = 'playing';
+      state.ttsParaOffset = 0;
+      updateTtsUi();
+      turnToPage(1, 'forward', () => {
+        if (state.ttsStatus === 'playing') {
+          speakCurrentParagraph();
+        }
+      });
+      return;
+    }
+
+    const page = state.pages[state.currentPageIndex];
+    if (!page || page.type === 'cover') return;
+
+    const paraNodes = el.currentPage.querySelectorAll('p.novel-para');
+    const totalParasOnPage = paraNodes.length;
+
+    // If all paragraphs on the current page have been read, auto-flip to next page!
+    if (state.ttsParaOffset >= totalParasOnPage) {
+      clearTtsHighlight();
+      if (state.currentPageIndex < state.pages.length - 1) {
+        state.ttsParaOffset = 0;
+        turnToPage(state.currentPageIndex + 1, 'forward', () => {
+          if (state.ttsStatus === 'playing') {
+            speakCurrentParagraph();
+          }
+        });
+      } else {
+        // Reached the end of the entire novel
+        stopTts();
+        el.ttsStatusText.textContent = '완독 완료';
+      }
+      return;
+    }
+
+    const targetNode = paraNodes[state.ttsParaOffset];
+    const textToRead = targetNode ? targetNode.textContent.trim() : '';
+    if (!textToRead) {
+      state.ttsParaOffset++;
+      speakCurrentParagraph();
+      return;
+    }
+
+    cancelSpeechInternal();
+    ttsCancelFlag = false;
+
+    // Prefix chapter title naturally if it's the very first paragraph of a chapter
+    let spokenText = textToRead;
+    if (state.ttsParaOffset === 0 && page.startParaIndex === 0) {
+      spokenText = `${page.chapterTitle}. ${textToRead}`;
+    }
+
+    const utter = new SpeechSynthesisUtterance(spokenText);
+    utter.lang = 'ko-KR';
+    cachedMaleVoice = cachedMaleVoice || selectBestKoreanMaleVoice();
+    if (cachedMaleVoice) {
+      utter.voice = cachedMaleVoice;
+    }
+
+    // Tune for a soft, warm, calm male storytelling voice:
+    // If a dedicated male voice (like Microsoft InJoon) is active, use natural warm pitch (0.94).
+    // If only a default/female voice is installed on the device, lower pitch (0.78) to create a gentle male tone.
+    const hasNativeMale = isLikelyMaleVoice(cachedMaleVoice);
+    utter.pitch = hasNativeMale ? 0.94 : 0.78;
+    utter.rate = state.ttsRate * 0.95; // Slightly relaxed literary pacing
+
+    highlightCurrentParagraph(state.ttsParaOffset);
+    state.ttsStatus = 'playing';
+    updateTtsUi();
+
+    utter.onend = () => {
+      if (ttsCancelFlag || state.ttsStatus !== 'playing') return;
+      state.ttsParaOffset++;
+      speakCurrentParagraph();
+    };
+
+    utter.onerror = (ev) => {
+      if (ttsCancelFlag || ev.error === 'interrupted' || ev.error === 'canceled') return;
+      if (state.ttsStatus === 'playing') {
+        state.ttsParaOffset++;
+        speakCurrentParagraph();
+      }
+    };
+
+    currentUtterance = utter;
+    synth.speak(utter);
+  }
+
+  function startOrResumeTts() {
+    if (!synth) return;
+    el.ttsPlayerBar.classList.remove('hidden');
+
+    if (state.ttsStatus === 'playing') {
+      // Pause
+      state.ttsStatus = 'paused';
+      if (synth.speaking) {
+        synth.pause();
+      }
+      updateTtsUi();
+    } else if (state.ttsStatus === 'paused') {
+      // Resume
+      state.ttsStatus = 'playing';
+      if (synth.paused) {
+        synth.resume();
+        updateTtsUi();
+      } else {
+        // Fallback if browser cleared paused utterance (common on mobile Safari/Chrome)
+        speakCurrentParagraph();
+      }
+    } else {
+      // Stopped -> Start from beginning of current page (or clicked paragraph)
+      state.ttsStatus = 'playing';
+      speakCurrentParagraph();
+    }
+  }
+
+  function stopTts() {
+    cancelSpeechInternal();
+    state.ttsStatus = 'stopped';
+    state.ttsParaOffset = 0;
+    clearTtsHighlight();
+    updateTtsUi();
+  }
+
+  function cycleTtsSpeed() {
+    const speeds = [0.9, 1.0, 1.1, 1.25];
+    const idx = speeds.findIndex((s) => Math.abs(s - state.ttsRate) < 0.03);
+    state.ttsRate = speeds[(idx + 1) % speeds.length];
+    updateTtsUi();
+    if (state.ttsStatus === 'playing') {
+      speakCurrentParagraph();
+    }
   }
 
   // =========================================================================
@@ -887,6 +1133,30 @@
       state.mode = state.mode === 'flip' ? 'scroll' : 'flip';
       saveSettings();
       updateModeView();
+    });
+
+    // TTS Audiobook Controls
+    el.btnOpenTts.addEventListener('click', () => {
+      if (el.ttsPlayerBar.classList.contains('hidden')) {
+        el.ttsPlayerBar.classList.remove('hidden');
+        if (state.ttsStatus !== 'playing') {
+          startOrResumeTts();
+        }
+      } else {
+        startOrResumeTts();
+      }
+    });
+    el.btnTtsPlayPause.addEventListener('click', startOrResumeTts);
+    el.btnTtsStop.addEventListener('click', stopTts);
+    el.btnTtsSpeed.addEventListener('click', cycleTtsSpeed);
+    el.btnTtsClose.addEventListener('click', () => {
+      stopTts();
+      el.ttsPlayerBar.classList.add('hidden');
+    });
+
+    // Clean up speech if tab/window is closed
+    window.addEventListener('beforeunload', () => {
+      cancelSpeechInternal();
     });
 
     // Responsive Window Resize Repagination

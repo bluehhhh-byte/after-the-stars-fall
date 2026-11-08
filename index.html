@@ -57,6 +57,14 @@
           <span id="modeText">3D 책넘김</span>
         </button>
 
+        <!-- TTS Audiobook Player Toggle Button -->
+        <button id="btnOpenTts" class="icon-btn" title="오디오북 낭독 (TTS)" aria-label="오디오북 낭독 열기">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+          </svg>
+        </button>
+
         <!-- Bookmark Current Page Button -->
         <button id="btnBookmarkPage" class="icon-btn" title="현재 페이지 책갈피" aria-label="책갈피 추가/해제">
           <svg id="bookmarkSvg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -106,6 +114,24 @@
       <!-- Continuous Scroll Mode Container (Alternative Focus Mode) -->
       <div id="scrollViewport" class="scroll-viewport hidden">
         <div id="scrollContent" class="scroll-content"></div>
+      </div>
+    </div>
+
+    <!-- Floating TTS Audiobook Mini Player Bar -->
+    <div id="ttsPlayerBar" class="tts-player-bar hidden" role="region" aria-label="오디오북 낭독 컨트롤러">
+      <div class="tts-status-col">
+        <span id="ttsWaveDot" class="tts-wave-dot"></span>
+        <span id="ttsStatusText" class="tts-status-text">낭독 대기</span>
+      </div>
+      <div class="tts-controls-col">
+        <button id="btnTtsPlayPause" class="tts-ctrl-btn primary" title="재생 / 일시정지" aria-label="재생 또는 일시정지">
+          <span id="ttsPlayIcon">▶</span>
+        </button>
+        <button id="btnTtsStop" class="tts-ctrl-btn" title="정지 (현재 페이지 처음부터)" aria-label="정지">
+          ■
+        </button>
+        <button id="btnTtsSpeed" class="tts-speed-btn" title="낭독 속도 조절">1.0x</button>
+        <button id="btnTtsClose" class="tts-close-btn" title="오디오북 닫기" aria-label="오디오북 닫기">✕</button>
       </div>
     </div>
 
