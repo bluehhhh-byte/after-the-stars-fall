@@ -170,12 +170,6 @@
   // 2. Smart Auto-Pagination Engine (Offscreen DOM Measurement)
   // =========================================================================
   function buildCoverPageObject() {
-    const novel = window.NOVEL_DATA;
-    // Format title into two balanced lines if it matches "별이 지고 난 뒤에도"
-    let formattedTitle = escapeHtml(novel.title);
-    if (novel.title === '별이 지고 난 뒤에도') {
-      formattedTitle = `<span class="title-line-1">별이 지고 난</span><span class="title-line-2">뒤에도</span>`;
-    }
     return {
       type: 'cover',
       chapterId: 0,
@@ -188,7 +182,8 @@
             <div class="cover-top-section">
               <div class="cover-ornament-line"></div>
               <div class="cover-title-block">
-                <h1>${formattedTitle}</h1>
+                <h1>반추</h1>
+                <span class="cover-hanja-sub">返 追</span>
               </div>
             </div>
 
@@ -237,7 +232,7 @@
 
     // Measure available body height inside a standard page
     el.measureBox.innerHTML = `
-      <div class="page-header-strip"><span>별이 지고 난 뒤에도</span><span>제1장</span></div>
+      <div class="page-header-strip"><span>반추 返追</span><span>제1장</span></div>
       <div class="page-body-content" id="measureBody"></div>
       <div class="page-footer-strip"><span>1장</span><span>1 / 100</span></div>
     `;
@@ -328,7 +323,7 @@
     const progressPct = Math.round((pageIndex / totalContentPages) * 100);
     return `
       <div class="page-header-strip">
-        <span>별이 지고 난 뒤에도</span>
+        <span>반추 返追</span>
         <span>${escapeHtml(page.chapterTitle)}</span>
       </div>
       <div class="page-body-content">
@@ -364,7 +359,6 @@
     if (openBtn) {
       openBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        ensureAudioContext();
         turnToPage(1, 'forward');
       });
     }
@@ -410,7 +404,6 @@
     const newHtml = buildFullPageHtml(clamped);
 
     state.isFlipping = true;
-    playPaperTurnSound();
 
     el.flipCard.classList.remove('anim-forward', 'anim-backward');
     el.flipLayer.classList.remove('hidden');
@@ -517,7 +510,7 @@
       <li class="toc-item ${state.currentPageIndex === 0 ? 'active' : ''}" data-chapter-id="0" data-target-page="0">
         <div class="toc-item-left">
           <span class="toc-chap-num">COVER</span>
-          <span class="toc-chap-title">표지 — ${novel.title}</span>
+          <span class="toc-chap-title">표지 — 반추 (返追)</span>
         </div>
         <span class="toc-page-num">표지</span>
       </li>
@@ -638,252 +631,7 @@
   }
 
   // =========================================================================
-  // 6. Web Audio Synthesizer: Subtle Page Turn Sound & Rain/Night Ambient BGM
-  // =========================================================================
-  let audioCtx = null;
-  let bgmNodes = null;
-
-  function ensureAudioContext() {
-    if (!audioCtx) {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (AudioContextClass) {
-        audioCtx = new AudioContextClass();
-      }
-    }
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-  }
-
-  function playPaperTurnSound() {
-    try {
-      ensureAudioContext();
-      if (!audioCtx || audioCtx.state !== 'running') return;
-
-      const now = audioCtx.currentTime;
-      const sampleRate = audioCtx.sampleRate;
-
-      // 3-Stage Realistic Book Page Turn Acoustic Model:
-      // Stage 1 (0.00s - 0.04s): Finger lifting the paper corner (crisp high-mid paper grain catch)
-      // Stage 2 (0.02s - 0.24s): Paper sliding & bending across the page (sweeping formant filter 700Hz -> 2400Hz -> 900Hz)
-      // Stage 3 (0.20s - 0.30s): Soft paper-on-paper settle at the spine (warm low-mid cushion thump)
-      const totalDur = 0.32;
-      const bufLen = Math.floor(sampleRate * totalDur);
-      const buffer = audioCtx.createBuffer(1, bufLen, sampleRate);
-      const data = buffer.getChannelData(0);
-
-      // Generate textured paper fiber friction noise (filtered pink/velvet blend)
-      let b0 = 0, b1 = 0, b2 = 0;
-      for (let i = 0; i < bufLen; i++) {
-        const t = i / sampleRate;
-        const white = Math.random() * 2 - 1;
-        b0 = 0.995 * b0 + white * 0.045;
-        b1 = 0.960 * b1 + white * 0.095;
-        b2 = 0.820 * b2 + white * 0.210;
-        const pink = b0 + b1 + b2 + white * 0.18;
-
-        // Multi-stage amplitude contour matching physical page flip speed
-        // 1) Initial corner flick + 2) Main slide + 3) Soft landing
-        const flickEnv = Math.exp(-Math.pow((t - 0.018) / 0.012, 2)) * 0.55;
-        const slideEnv = Math.sin(Math.min(1, Math.max(0, (t - 0.01) / 0.24)) * Math.PI) * 0.95;
-        const settleEnv = Math.exp(-Math.pow((t - 0.245) / 0.028, 2)) * 0.42;
-
-        // Subtle micro-crackle of paper fibers
-        const fiberGrain = 0.85 + 0.15 * Math.sin(t * 420 + Math.sin(t * 95) * 3);
-
-        data[i] = pink * (flickEnv + slideEnv + settleEnv) * fiberGrain;
-      }
-
-      const src = audioCtx.createBufferSource();
-      src.buffer = buffer;
-
-      // Formant Filter 1: Moving paper resonance (sweeps up as page arches, down as it lays flat)
-      const sweepFilter = audioCtx.createBiquadFilter();
-      sweepFilter.type = 'bandpass';
-      sweepFilter.Q.setValueAtTime(1.15, now);
-      sweepFilter.frequency.setValueAtTime(680, now);
-      sweepFilter.frequency.exponentialRampToValueAtTime(2200, now + 0.11);
-      sweepFilter.frequency.exponentialRampToValueAtTime(780, now + 0.28);
-
-      // Formant Filter 2: High-pass to remove muddy rumble while keeping paper body warmth
-      const bodyFilter = audioCtx.createBiquadFilter();
-      bodyFilter.type = 'highpass';
-      bodyFilter.frequency.setValueAtTime(280, now);
-
-      const masterGain = audioCtx.createGain();
-      masterGain.gain.setValueAtTime(0.28, now);
-      masterGain.gain.exponentialRampToValueAtTime(0.001, now + totalDur);
-
-      src.connect(bodyFilter);
-      bodyFilter.connect(sweepFilter);
-      sweepFilter.connect(masterGain);
-      masterGain.connect(audioCtx.destination);
-
-      src.start(now);
-      src.stop(now + totalDur);
-    } catch (e) {}
-  }
-
-  function toggleAmbientBgm() {
-    ensureAudioContext();
-    if (!audioCtx) return;
-
-    if (state.bgmActive) {
-      if (bgmNodes) {
-        try {
-          if (bgmNodes.dropletInterval) clearInterval(bgmNodes.dropletInterval);
-          bgmNodes.masterGain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.6);
-          setTimeout(() => {
-            try {
-              bgmNodes.windSource.stop();
-              bgmNodes.windLfo.stop();
-              bgmNodes.padOsc1.stop();
-              bgmNodes.padOsc2.stop();
-              bgmNodes.padOsc3.stop();
-            } catch (e) {}
-            bgmNodes = null;
-          }, 650);
-        } catch (e) {}
-      }
-      state.bgmActive = false;
-      el.btnToggleBgm.classList.remove('active');
-    } else {
-      // Mystical Pond Night Soundscape:
-      // 1) Slow, soft night breeze across the pond (low-passed & LFO-modulated warm breeze, NO harsh hiss)
-      // 2) Ethereal warm harmonic chord pad (Fmaj7#11 / Am9 dreamy resonance)
-      // 3) Occasional gentle water droplets & ripples echoing on the pond surface
-      const masterGain = audioCtx.createGain();
-      masterGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-      masterGain.gain.linearRampToValueAtTime(0.22, audioCtx.currentTime + 2.0);
-      masterGain.connect(audioCtx.destination);
-
-      // --- 1. Soft Night Breeze (Deep Bandpass + Slow Breathing LFO) ---
-      const bufferSize = audioCtx.sampleRate * 5;
-      const breezeBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-      const output = breezeBuffer.getChannelData(0);
-      let lastOut = 0.0;
-      for (let i = 0; i < bufferSize; i++) {
-        // Brownian/Red noise (very smooth, no high-frequency static hiss)
-        const white = Math.random() * 2 - 1;
-        output[i] = (lastOut + (0.015 * white)) / 1.015;
-        lastOut = output[i];
-        output[i] *= 1.8;
-      }
-      const windSource = audioCtx.createBufferSource();
-      windSource.buffer = breezeBuffer;
-      windSource.loop = true;
-
-      const windFilter = audioCtx.createBiquadFilter();
-      windFilter.type = 'bandpass';
-      windFilter.frequency.value = 260;
-      windFilter.Q.value = 1.8;
-
-      // Slow LFO to make the breeze gently swell and fade every ~7 seconds
-      const windLfo = audioCtx.createOscillator();
-      windLfo.type = 'sine';
-      windLfo.frequency.value = 0.14;
-      const windLfoGain = audioCtx.createGain();
-      windLfoGain.gain.value = 110;
-      windLfo.connect(windLfoGain);
-      windLfoGain.connect(windFilter.frequency);
-
-      const windGain = audioCtx.createGain();
-      windGain.gain.value = 0.14;
-      windSource.connect(windFilter);
-      windFilter.connect(windGain);
-      windGain.connect(masterGain);
-
-      // --- 2. Mystical Starlight Pad (Soft Sine Harmonics) ---
-      const padOsc1 = audioCtx.createOscillator();
-      const padOsc2 = audioCtx.createOscillator();
-      const padOsc3 = audioCtx.createOscillator();
-      padOsc1.type = 'sine';
-      padOsc2.type = 'sine';
-      padOsc3.type = 'triangle';
-      padOsc1.frequency.value = 174.61; // F3
-      padOsc2.frequency.value = 261.63; // C4
-      padOsc3.frequency.value = 329.63; // E4
-
-      const padFilter = audioCtx.createBiquadFilter();
-      padFilter.type = 'lowpass';
-      padFilter.frequency.value = 480;
-
-      const padGain = audioCtx.createGain();
-      padGain.gain.value = 0.045;
-      padOsc1.connect(padFilter);
-      padOsc2.connect(padFilter);
-      padOsc3.connect(padFilter);
-      padFilter.connect(padGain);
-      padGain.connect(masterGain);
-
-      // --- 3. Tranquil Pond Water Droplets & Ripples ---
-      function triggerWaterDrop() {
-        if (!audioCtx || !state.bgmActive) return;
-        const now = audioCtx.currentTime;
-
-        // Primary water drop (resonant sine pitch-bend upward like a real water plop)
-        const dropOsc = audioCtx.createOscillator();
-        const dropGain = audioCtx.createGain();
-        dropOsc.type = 'sine';
-
-        // Pick pentatonic/mystical water frequencies
-        const baseFreqs = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
-        const f0 = baseFreqs[Math.floor(Math.random() * baseFreqs.length)];
-        dropOsc.frequency.setValueAtTime(f0 * 0.72, now);
-        dropOsc.frequency.exponentialRampToValueAtTime(f0 * 1.18, now + 0.085);
-
-        dropGain.gain.setValueAtTime(0.0001, now);
-        dropGain.gain.linearRampToValueAtTime(0.075, now + 0.012);
-        dropGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
-
-        dropOsc.connect(dropGain);
-        dropGain.connect(masterGain);
-        dropOsc.start(now);
-        dropOsc.stop(now + 0.45);
-
-        // Soft secondary ripple echo
-        if (Math.random() > 0.35) {
-          const echoOsc = audioCtx.createOscillator();
-          const echoGain = audioCtx.createGain();
-          echoOsc.type = 'sine';
-          echoOsc.frequency.setValueAtTime(f0 * 1.18, now + 0.16);
-          echoOsc.frequency.exponentialRampToValueAtTime(f0 * 1.32, now + 0.25);
-
-          echoGain.gain.setValueAtTime(0.0001, now + 0.16);
-          echoGain.gain.linearRampToValueAtTime(0.028, now + 0.18);
-          echoGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
-
-          echoOsc.connect(echoGain);
-          echoGain.connect(masterGain);
-          echoOsc.start(now + 0.16);
-          echoOsc.stop(now + 0.68);
-        }
-      }
-
-      windSource.start();
-      windLfo.start();
-      padOsc1.start();
-      padOsc2.start();
-      padOsc3.start();
-
-      // Play initial gentle water drop and schedule organic pond ripples
-      setTimeout(triggerWaterDrop, 300);
-      const dropletInterval = setInterval(() => {
-        if (!state.bgmActive) return;
-        triggerWaterDrop();
-        if (Math.random() > 0.6) {
-          setTimeout(triggerWaterDrop, 450 + Math.random() * 600);
-        }
-      }, 2200);
-
-      bgmNodes = { masterGain, windSource, windLfo, padOsc1, padOsc2, padOsc3, dropletInterval };
-      state.bgmActive = true;
-      el.btnToggleBgm.classList.add('active');
-    }
-  }
-
-  // =========================================================================
-  // 7. Ambient Starfield Canvas Animation
+  // 6. Ambient Starfield Canvas Animation
   // =========================================================================
   function initStarfield() {
     const canvas = el.starCanvas;
@@ -925,7 +673,7 @@
   }
 
   // =========================================================================
-  // 8. UI Events, Touch Swipe, Keyboard & Resize Handling
+  // 7. UI Events, Touch Swipe, Keyboard & Resize Handling
   // =========================================================================
   function toggleUiBars(forceState) {
     state.uiVisible = typeof forceState === 'boolean' ? forceState : !state.uiVisible;
@@ -985,11 +733,9 @@
   function bindEvents() {
     // Touch/Click Zones
     el.zonePrev.addEventListener('click', () => {
-      ensureAudioContext();
       prevPage();
     });
     el.zoneNext.addEventListener('click', () => {
-      ensureAudioContext();
       nextPage();
     });
     el.zoneCenter.addEventListener('click', () => {
@@ -1011,7 +757,6 @@
         const dx = e.changedTouches[0].clientX - touchStartX;
         const dy = e.changedTouches[0].clientY - touchStartY;
         if (Math.abs(dx) > 42 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-          ensureAudioContext();
           if (dx < 0) nextPage();
           else prevPage();
         }
@@ -1143,9 +888,6 @@
       saveSettings();
       updateModeView();
     });
-
-    // Ambient BGM Toggle
-    el.btnToggleBgm.addEventListener('click', toggleAmbientBgm);
 
     // Responsive Window Resize Repagination
     let resizeTimer = null;
