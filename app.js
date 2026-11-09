@@ -490,16 +490,23 @@
   // =========================================================================
   // 3. Rendering & flip
   // =========================================================================
-  function renderCurrentPage() {
+  let renderedHtml = '';
+  // animate=false lands the page in its settled state (used when flipping back to a page already seen)
+  function renderCurrentPage(animate = true) {
     const page = state.pages[state.currentPageIndex];
     if (!page) return;
-    el.currentPage.innerHTML = buildFullPageHtml(state.currentPageIndex);
-    if (page.type === 'credits') fitRefLines(el.currentPage);
+    const html = buildFullPageHtml(state.currentPageIndex);
+    if (html !== renderedHtml) { // same markup → leave the DOM alone so entrance animations run only once
+      renderedHtml = html;
+      el.currentPage.innerHTML = html;
+      el.currentPage.classList.toggle('no-enter', !animate);
+      if (page.type === 'credits') fitRefLines(el.currentPage);
 
-    const openBtn = el.currentPage.querySelector('[data-action="open-first-chapter"]');
-    if (openBtn) openBtn.addEventListener('click', (e) => { e.stopPropagation(); turnToPage(1, 'forward'); });
-    const backBtn = el.currentPage.querySelector('[data-action="back-to-cover"]');
-    if (backBtn) backBtn.addEventListener('click', (e) => { e.stopPropagation(); turnToPage(0, 'backward'); });
+      const openBtn = el.currentPage.querySelector('[data-action="open-first-chapter"]');
+      if (openBtn) openBtn.addEventListener('click', (e) => { e.stopPropagation(); turnToPage(1, 'forward'); });
+      const backBtn = el.currentPage.querySelector('[data-action="back-to-cover"]');
+      if (backBtn) backBtn.addEventListener('click', (e) => { e.stopPropagation(); turnToPage(0, 'backward'); });
+    }
 
     updateIndicators();
     saveReadingProgress();
@@ -523,7 +530,7 @@
 
     if (direction === 'forward') {
       state.currentPageIndex = clamped;
-      el.currentPage.innerHTML = newHtml;
+      renderCurrentPage(); // new page animates in once, revealed under the lifting sheet
       el.flipFront.innerHTML = `<div class="book-page">${oldHtml}</div>`;
       el.flipBack.innerHTML = `<div class="book-page"></div>`;
       void el.flipCard.offsetWidth;
@@ -540,7 +547,7 @@
     saveReadingProgress();
 
     setTimeout(() => {
-      renderCurrentPage();
+      renderCurrentPage(direction === 'forward'); // backward: the sheet already showed the page, land it settled
       el.flipLayer.classList.add('hidden');
       el.flipCard.classList.remove('anim-forward', 'anim-backward');
       state.isFlipping = false;

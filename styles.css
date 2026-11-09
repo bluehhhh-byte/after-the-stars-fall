@@ -473,6 +473,9 @@ html[data-theme="sepia"] .cover-title, html[data-theme="paper"] .cover-title, ht
 @keyframes flipForwardAnim { 0% { transform: rotateY(0deg); box-shadow: -4px 0 18px rgba(0, 0, 0, 0.15); } 45% { box-shadow: -34px 0 60px rgba(0, 0, 0, 0.6); } 100% { transform: rotateY(-180deg); box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1); } }
 @keyframes flipBackwardAnim { 0% { transform: rotateY(-180deg); box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1); } 55% { box-shadow: -34px 0 60px rgba(0, 0, 0, 0.6); } 100% { transform: rotateY(0deg); box-shadow: -4px 0 18px rgba(0, 0, 0, 0.15); } }
 @keyframes flipSheen { 0% { opacity: 0; transform: translateX(-40%); } 40% { opacity: 1; } 100% { opacity: 0; transform: translateX(40%); } }
+/* Entrance animations run only on the live page's first paint — never on the flipping sheet, never on a settled re-render */
+.flip-face :is(.cover-rule, .cover-title, .cover-hanja, .cover-epigraph, .cover-foot, .cover-genre, .chapter-motif, .chapter-kicker, .chapter-heading, .chapter-rule, .chapter-paracount),
+.no-enter :is(.cover-rule, .cover-title, .cover-hanja, .cover-epigraph, .cover-foot, .cover-genre, .chapter-motif, .chapter-kicker, .chapter-heading, .chapter-rule, .chapter-paracount) { animation: none; }
 .flip-card.anim-forward { animation: flipForwardAnim var(--flip-ms) var(--ease-flip) forwards; }
 .flip-card.anim-backward { animation: flipBackwardAnim var(--flip-ms) var(--ease-flip) forwards; }
 
