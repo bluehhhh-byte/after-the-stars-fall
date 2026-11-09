@@ -320,7 +320,7 @@
             </p>
             <div class="cover-foot">
               <button type="button" class="btn-open-book" data-action="open-first-chapter">책 펼치기 →</button>
-              <span class="cover-date-meta">2026년 11월. 폄.</span>
+              <span class="cover-date-meta">2026년 11월. 펴냄.</span>
             </div>
           </div>
         </div>`
@@ -336,7 +336,7 @@
       <span class="chapter-kicker">${escapeHtml(chapter.number)}</span>
       <h2 class="chapter-heading">${escapeHtml(chapter.subtitle)}</h2>
       <span class="chapter-rule"></span>
-      <span class="chapter-paracount">읽는 데 약 ${minutes}분</span>`;
+      <span class="chapter-paracount">약 ${minutes}분</span>`;
   }
 
   function buildChapterPageObject(chapter) {
