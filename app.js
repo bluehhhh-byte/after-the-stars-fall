@@ -1,5 +1,9 @@
 /**
- * 『별이 지고 난 뒤에도』 — 3D Flip Mobile & Focus Web-Book Engine
+ * 『반추 (返追)』 — 3D Flip Mobile & Focus Web-Book Engine (v2, Literary Night Edition)
+ *
+ * Page model: state.pages = [cover, (chapter, content...)×8, credits]
+ *   type: 'cover' | 'chapter' | 'content' | 'credits'
+ *   Only 'content' pages carry a folio number (pageNo) and reading progress.
  */
 (function () {
   'use strict';
@@ -16,9 +20,10 @@
   };
 
   const THEME_META_COLOR = {
-    starlight: '#070b17',
-    sepia: '#2b241d',
-    paper: '#e4e7ec'
+    starlight: '#04060d',
+    sepia: '#2e2520',
+    paper: '#e6e8ee',
+    dawn: '#2b2a3b'
   };
 
   // Ending credits (작가의 말) — shown as the final page after Chapter 8. Edit freely.
@@ -30,6 +35,25 @@
     '그리고 여기까지 읽어 주신 당신에게도.'
   ];
 
+  // Line-art motif per chapter (64×64, stroke = currentColor). Used on chapter title pages, TOC and scroll mode.
+  const CHAPTER_MOTIFS = {
+    1: `<svg viewBox="0 0 64 64"><circle cx="32" cy="15" r="2.4" fill="currentColor" stroke="none"/><path d="M32 7v3.5M32 19.5V23M24 15h3.5M36.5 15H40"/><path d="M32 26v14" stroke-dasharray="1.5 3"/><ellipse cx="32" cy="47" rx="21" ry="6.5"/><ellipse cx="32" cy="47" rx="10" ry="3"/></svg>`,
+    2: `<svg viewBox="0 0 64 64"><path d="M12 12l15 15"/><path d="M33 9l11 11"/><path d="M20 34l17 17"/><circle cx="29.5" cy="29.5" r="2.1" fill="currentColor" stroke="none"/><circle cx="46" cy="22" r="1.7" fill="currentColor" stroke="none"/><circle cx="39.5" cy="53.5" r="2.3" fill="currentColor" stroke="none"/></svg>`,
+    3: `<svg viewBox="0 0 64 64"><circle cx="32" cy="37" r="18"/><circle cx="32" cy="37" r="13.5"/><path d="M32 37V27.5M32 37l6.5 4.5"/><path d="M28.5 13h7M32 13v6"/><circle cx="32" cy="37" r="1.3" fill="currentColor" stroke="none"/></svg>`,
+    4: `<svg viewBox="0 0 64 64"><path d="M32 51V27"/><path d="M32 27c-9 0-14.5-6-14.5-12.5 0-5 5-8 9.5-6 1-5.5 9-5.5 10 0 4.5-2 9.5 1 9.5 6C46.5 21 41 27 32 27z"/><path d="M16 53h32"/><path d="M34 53c7 2 13 5.5 17 10" opacity=".5"/></svg>`,
+    5: `<svg viewBox="0 0 64 64"><path d="M32 57V35"/><path d="M32 35c0-8.5-8-13-16.5-15"/><path d="M32 35c0-8.5 8-13 16.5-15"/><circle cx="13.5" cy="18.5" r="2.6"/><circle cx="50.5" cy="18.5" r="2.6"/><path d="M25 57h14"/></svg>`,
+    6: `<svg viewBox="0 0 64 64"><path d="M32 11c6.5 6.5 9.5 13.5 9.5 21 0 8.5-4 14.5-9.5 21-5.5-6.5-9.5-12.5-9.5-21 0-7.5 3-14.5 9.5-21z"/><path d="M32 18v30" opacity=".45"/><path d="M22.5 31l-6.5-4.5M41.5 31l6.5-4.5" opacity=".55"/></svg>`,
+    7: `<svg viewBox="0 0 64 64"><path d="M32 19c-6-4-13-5.5-20-4.5v32c7-1 14 .5 20 4.5 6-4 13-5.5 20-4.5v-32c-7-1-14 .5-20 4.5z"/><path d="M32 19v32"/><path d="M18 25c4-.5 8 0 11 1.5M18 33c4-.5 8 0 11 1.5M35 26.5c3-1.5 7-2 11-1.5M35 34.5c3-1.5 7-2 11-1.5" opacity=".55"/></svg>`,
+    8: `<svg viewBox="0 0 64 64"><path d="M13 40h38l-6.5 8.5h-25z"/><path d="M32 40V19"/><path d="M32 19l12.5 14.5H32z"/><path d="M9 55c4-3 8-3 12 0s8 3 12 0 8-3 12 0 8 3 12 0" opacity=".55"/></svg>`,
+    cover: `<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="3" fill="currentColor" stroke="none"/><path d="M32 14v8M32 42v8M14 32h8M42 32h8M19.3 19.3l5.7 5.7M39 39l5.7 5.7M44.7 19.3L39 25M25 39l-5.7 5.7"/></svg>`,
+    end: `<svg viewBox="0 0 64 64"><circle cx="32" cy="24" r="3" fill="currentColor" stroke="none"/><path d="M32 30v10" stroke-dasharray="1.5 3"/><ellipse cx="32" cy="46" rx="18" ry="5"/><path d="M16 14l4 4M48 14l-4 4" opacity=".5"/></svg>`
+  };
+
+  const MODE_ICONS = {
+    flip: `<svg viewBox="0 0 24 24"><path d="M3 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H3zM21 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z"/></svg>`,
+    scroll: `<svg viewBox="0 0 24 24"><path d="M6 4h12M6 9h12M6 14h9M12 18v-3M9.5 18.5L12 21l2.5-2.5"/></svg>`
+  };
+
   // Reader State
   const state = {
     theme: 'starlight',
@@ -37,95 +61,107 @@
     fontSize: 18,
     lineHeight: 1.95,
     mode: 'flip', // 'flip' | 'scroll'
-    pages: [],    // Array of page objects
-    chapterStartPages: {}, // chapterId -> pageIndex
+    pages: [],
+    chapterStartPages: {}, // chapterId -> page index of its title page
+    contentTotal: 1,       // number of folio-numbered content pages
     currentPageIndex: 0,
     isFlipping: false,
     uiVisible: true,
-    bookmarks: [], // Array of { chapterId, paraIndex, chapterTitle, snippet, savedAt }
+    bookmarks: [], // { chapterId, paraIndex, chapterTitle, snippet, savedAt }
     ttsStatus: 'stopped', // 'stopped' | 'playing' | 'paused'
     ttsRate: 1.0,
     ttsParaOffset: 0,
     ttsVoiceURI: '' // '' = auto-select best Korean voice
   };
 
-  // DOM Elements
+  // DOM
+  const $ = (id) => document.getElementById(id);
   const el = {
     html: document.documentElement,
-    metaThemeColor: document.getElementById('metaThemeColor'),
-    starCanvas: document.getElementById('starfieldCanvas'),
-    topBar: document.getElementById('topBar'),
-    bottomBar: document.getElementById('bottomBar'),
-    topChapterLabel: document.getElementById('topChapterLabel'),
-    bottomChapterInfo: document.getElementById('bottomChapterInfo'),
-    bottomPageCounter: document.getElementById('bottomPageCounter'),
-    pageSlider: document.getElementById('pageSlider'),
-    bookViewport: document.getElementById('bookViewport'),
-    currentPage: document.getElementById('currentPage'),
-    pageRibbon: document.getElementById('pageRibbon'),
-    flipLayer: document.getElementById('flipLayer'),
-    flipCard: document.getElementById('flipCard'),
-    flipFront: document.getElementById('flipFront'),
-    flipBack: document.getElementById('flipBack'),
-    measureBox: document.getElementById('measureBox'),
-    scrollViewport: document.getElementById('scrollViewport'),
-    scrollContent: document.getElementById('scrollContent'),
-    zonePrev: document.getElementById('zonePrev'),
-    zoneCenter: document.getElementById('zoneCenter'),
-    zoneNext: document.getElementById('zoneNext'),
-    btnPrevPage: document.getElementById('btnPrevPage'),
-    btnNextPage: document.getElementById('btnNextPage'),
-    btnOpenToc: document.getElementById('btnOpenToc'),
-    btnCloseToc: document.getElementById('btnCloseToc'),
-    tocDrawer: document.getElementById('tocDrawer'),
-    drawerBackdrop: document.getElementById('drawerBackdrop'),
-    tabBtnToc: document.getElementById('tabBtnToc'),
-    tabBtnBookmarks: document.getElementById('tabBtnBookmarks'),
-    tabPanelToc: document.getElementById('tabPanelToc'),
-    tabPanelBookmarks: document.getElementById('tabPanelBookmarks'),
-    tocList: document.getElementById('tocList'),
-    bookmarkList: document.getElementById('bookmarkList'),
-    bookmarkEmptyState: document.getElementById('bookmarkEmptyState'),
-    bookmarkCountBadge: document.getElementById('bookmarkCountBadge'),
-    btnBookmarkPage: document.getElementById('btnBookmarkPage'),
-    btnOpenSettings: document.getElementById('btnOpenSettings'),
-    btnCloseSettings: document.getElementById('btnCloseSettings'),
-    settingsPanel: document.getElementById('settingsPanel'),
-    fontSizeVal: document.getElementById('fontSizeVal'),
-    lineHeightVal: document.getElementById('lineHeightVal'),
-    btnFontDec: document.getElementById('btnFontDec'),
-    btnFontInc: document.getElementById('btnFontInc'),
-    btnLineDec: document.getElementById('btnLineDec'),
-    btnLineInc: document.getElementById('btnLineInc'),
-    btnToggleMode: document.getElementById('btnToggleMode'),
-    modeIcon: document.getElementById('modeIcon'),
-    modeText: document.getElementById('modeText'),
-    btnOpenTts: document.getElementById('btnOpenTts'),
-    ttsPlayerBar: document.getElementById('ttsPlayerBar'),
-    ttsWaveDot: document.getElementById('ttsWaveDot'),
-    ttsStatusText: document.getElementById('ttsStatusText'),
-    btnTtsPlayPause: document.getElementById('btnTtsPlayPause'),
-    ttsPlayIcon: document.getElementById('ttsPlayIcon'),
-    btnTtsStop: document.getElementById('btnTtsStop'),
-    btnTtsSpeed: document.getElementById('btnTtsSpeed'),
-    btnTtsClose: document.getElementById('btnTtsClose'),
-    ttsVoiceSelect: document.getElementById('ttsVoiceSelect'),
-    ttsVoiceHint: document.getElementById('ttsVoiceHint'),
-    resumeToast: document.getElementById('resumeToast'),
-    resumeToastMsg: document.getElementById('resumeToastMsg'),
-    btnResumeYes: document.getElementById('btnResumeYes'),
-    btnResumeClose: document.getElementById('btnResumeClose')
+    metaThemeColor: $('metaThemeColor'),
+    starCanvas: $('starfieldCanvas'),
+    topBar: $('topBar'),
+    bottomBar: $('bottomBar'),
+    topChapterLabel: $('topChapterLabel'),
+    bottomChapterInfo: $('bottomChapterInfo'),
+    bottomPageCounter: $('bottomPageCounter'),
+    pageSlider: $('pageSlider'),
+    bookViewport: $('bookViewport'),
+    currentPage: $('currentPage'),
+    pageRibbon: $('pageRibbon'),
+    flipLayer: $('flipLayer'),
+    flipCard: $('flipCard'),
+    flipFront: $('flipFront'),
+    flipBack: $('flipBack'),
+    measureBox: $('measureBox'),
+    scrollViewport: $('scrollViewport'),
+    scrollContent: $('scrollContent'),
+    zonePrev: $('zonePrev'),
+    zoneCenter: $('zoneCenter'),
+    zoneNext: $('zoneNext'),
+    btnPrevPage: $('btnPrevPage'),
+    btnNextPage: $('btnNextPage'),
+    btnOpenToc: $('btnOpenToc'),
+    btnCloseToc: $('btnCloseToc'),
+    tocDrawer: $('tocDrawer'),
+    drawerBackdrop: $('drawerBackdrop'),
+    drawerProgressLabel: $('drawerProgressLabel'),
+    drawerProgressFill: $('drawerProgressFill'),
+    tabBtnToc: $('tabBtnToc'),
+    tabBtnBookmarks: $('tabBtnBookmarks'),
+    tabPanelToc: $('tabPanelToc'),
+    tabPanelBookmarks: $('tabPanelBookmarks'),
+    tocList: $('tocList'),
+    bookmarkList: $('bookmarkList'),
+    bookmarkEmptyState: $('bookmarkEmptyState'),
+    bookmarkCountBadge: $('bookmarkCountBadge'),
+    btnBookmarkPage: $('btnBookmarkPage'),
+    btnOpenSettings: $('btnOpenSettings'),
+    btnCloseSettings: $('btnCloseSettings'),
+    settingsPanel: $('settingsPanel'),
+    fontSizeVal: $('fontSizeVal'),
+    lineHeightVal: $('lineHeightVal'),
+    btnFontDec: $('btnFontDec'),
+    btnFontInc: $('btnFontInc'),
+    btnLineDec: $('btnLineDec'),
+    btnLineInc: $('btnLineInc'),
+    btnToggleMode: $('btnToggleMode'),
+    modeIcon: $('modeIcon'),
+    modeText: $('modeText'),
+    btnOpenTts: $('btnOpenTts'),
+    ttsPlayerBar: $('ttsPlayerBar'),
+    ttsWaveDot: $('ttsWaveDot'),
+    ttsStatusText: $('ttsStatusText'),
+    btnTtsPlayPause: $('btnTtsPlayPause'),
+    ttsPlayIcon: $('ttsPlayIcon'),
+    btnTtsStop: $('btnTtsStop'),
+    btnTtsSpeed: $('btnTtsSpeed'),
+    btnTtsClose: $('btnTtsClose'),
+    ttsVoiceSelect: $('ttsVoiceSelect'),
+    ttsVoiceHint: $('ttsVoiceHint'),
+    resumeToast: $('resumeToast'),
+    resumeToastMsg: $('resumeToastMsg'),
+    btnResumeYes: $('btnResumeYes'),
+    btnResumeClose: $('btnResumeClose')
   };
 
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   // =========================================================================
-  // 1. Settings & Storage Persistence
+  // 1. Settings & Storage
   // =========================================================================
   function loadSavedSettings() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_SETTINGS);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed.theme) state.theme = parsed.theme;
+        if (parsed.theme && THEME_META_COLOR[parsed.theme]) state.theme = parsed.theme;
         if (parsed.fontKey && FONT_MAP[parsed.fontKey]) state.fontKey = parsed.fontKey;
         if (parsed.fontSize) state.fontSize = Math.min(26, Math.max(14, Number(parsed.fontSize)));
         if (parsed.lineHeight) state.lineHeight = Math.min(2.4, Math.max(1.5, Number(parsed.lineHeight)));
@@ -155,7 +191,6 @@
   }
 
   function saveReadingProgress() {
-    if (state.currentPageIndex <= 0) return; // Don't overwrite progress with cover page
     const page = state.pages[state.currentPageIndex];
     if (!page || page.type !== 'content') return;
     try {
@@ -173,7 +208,7 @@
   function applyVisualSettings() {
     el.html.setAttribute('data-theme', state.theme);
     if (el.metaThemeColor) {
-      el.metaThemeColor.setAttribute('content', THEME_META_COLOR[state.theme] || '#070b17');
+      el.metaThemeColor.setAttribute('content', THEME_META_COLOR[state.theme] || THEME_META_COLOR.starlight);
     }
     el.html.style.setProperty('--font-reader', FONT_MAP[state.fontKey]);
     el.html.style.setProperty('--reader-font-size', state.fontSize + 'px');
@@ -191,49 +226,112 @@
   }
 
   // =========================================================================
-  // 2. Smart Auto-Pagination Engine (Offscreen DOM Measurement)
+  // 2. Page Builders (cover / chapter / credits) & Auto-Pagination
   // =========================================================================
+  function coverStarsSvg() {
+    // Deterministic LCG so the sky is identical on every render
+    let seed = 7;
+    const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+    let out = '';
+    for (let i = 0; i < 58; i++) {
+      const x = (rnd() * 400).toFixed(1);
+      const y = (rnd() * 700).toFixed(1);
+      const r = (0.45 + rnd() * 1.25).toFixed(2);
+      const cls = i % 3 === 0 ? ' t2' : i % 3 === 1 ? ' t3' : '';
+      out += `<circle class="cover-star-bg${cls}" cx="${x}" cy="${y}" r="${r}"/>`;
+    }
+    return out;
+  }
+
   function buildCoverPageObject() {
     return {
       type: 'cover',
       chapterId: 0,
       chapterTitle: '표지',
       startParaIndex: 0,
-      endParaIndex: 0,
+      endParaIndex: -1,
       html: `
-        <div class="cover-layout">
-          <div class="cover-frame">
-            <div class="cover-top-section">
-              <div class="cover-ornament-line"></div>
-              <div class="cover-title-block">
-                <h1>반추</h1>
-                <span class="cover-hanja-sub">返 追</span>
-              </div>
+        <div class="cover">
+          <svg class="cover-sky-svg" viewBox="0 0 400 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <defs>
+              <linearGradient id="cvSky" x1="0" y1="0" x2="0" y2="1">
+                <stop class="cv-sky-a" offset="0"/>
+                <stop class="cv-sky-b" offset="1"/>
+              </linearGradient>
+            </defs>
+            <rect width="400" height="700" fill="url(#cvSky)"/>
+            ${coverStarsSvg()}
+            <line class="cover-shooting" x1="262" y1="330" x2="304" y2="296"/>
+          </svg>
+          <svg class="cover-pond-svg" viewBox="0 0 400 120" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            <defs>
+              <radialGradient id="cvGlow" cx="50%" cy="60%" r="55%">
+                <stop class="cv-glow-a" offset="0"/>
+                <stop class="cv-glow-b" offset="1"/>
+              </radialGradient>
+            </defs>
+            <ellipse cx="200" cy="76" rx="210" ry="60" fill="url(#cvGlow)"/>
+            <line class="cover-horizon" x1="30" y1="46" x2="370" y2="46"/>
+            <ellipse class="cover-pond" cx="200" cy="80" rx="152" ry="27"/>
+            <ellipse class="cover-ripple-ring" cx="200" cy="80" rx="60" ry="11"/>
+            <ellipse class="cover-ripple-ring r2" cx="200" cy="80" rx="60" ry="11"/>
+            <ellipse class="cover-ripple-ring r3" cx="200" cy="80" rx="60" ry="11"/>
+            <circle class="cover-orb" cx="200" cy="20" r="4.5"/>
+            <ellipse class="cover-orb-reflection" cx="200" cy="80" rx="9" ry="3"/>
+          </svg>
+          <div class="cover-frame-line" aria-hidden="true"></div>
+
+          <div class="cover-content">
+            <div class="cover-head">
+              <span class="cover-rule"></span>
+              <h1 class="cover-title">반추</h1>
+              <span class="cover-hanja">返 追</span>
             </div>
 
-            <div class="cover-center-section">
-              <div class="cover-art">
-                <span class="cover-sparkle s1"></span>
-                <span class="cover-sparkle s2"></span>
-                <span class="cover-sparkle s3"></span>
-                <div class="cover-star-orb"></div>
-                <div class="cover-ripple"></div>
-                <div class="cover-ripple-delay"></div>
-              </div>
-              <p class="cover-epigraph">
-                <span class="epigraph-line">“가끔 길을 잃는 별들이 있어요.</span>
-                <span class="epigraph-line epigraph-gap">여기는 잊지 못한 사람들이</span>
-                <span class="epigraph-line">오는 곳이니까요.”</span>
-              </p>
-            </div>
+            <div class="cover-spacer"></div>
 
-            <div class="cover-cta-wrap">
-              <button type="button" class="btn-open-book" data-action="open-first-chapter">
-                책 펼치기 &rarr;
-              </button>
+            <p class="cover-epigraph">
+              <span class="epigraph-line">“가끔 길을 잃는 별들이 있어요.</span>
+              <span class="epigraph-line epigraph-gap">여기는 잊지 못한 사람들이</span>
+              <span class="epigraph-line">오는 곳이니까요.”</span>
+            </p>
+
+            <div class="cover-foot">
+              <button type="button" class="btn-open-book" data-action="open-first-chapter">책 펼치기 →</button>
               <span class="cover-date-meta">2026. 11. 9. 작성.</span>
             </div>
           </div>
+        </div>
+      `
+    };
+  }
+
+  function chapterHeadHtml(chapter) {
+    const motif = CHAPTER_MOTIFS[chapter.id] || CHAPTER_MOTIFS.cover;
+    const chars = chapter.paragraphs.reduce((n, p) => n + p.length, 0);
+    const minutes = Math.max(1, Math.round(chars / 500)); // ~500자/분 literary pace
+    return `
+      <div class="chapter-motif">${motif}</div>
+      <span class="chapter-kicker">${escapeHtml(chapter.number)}</span>
+      <h2 class="chapter-heading">${escapeHtml(chapter.subtitle)}</h2>
+      <span class="chapter-rule"></span>
+      <span class="chapter-paracount">약 ${minutes}분</span>
+    `;
+  }
+
+  function buildChapterPageObject(chapter) {
+    return {
+      type: 'chapter',
+      chapterId: chapter.id,
+      chapterNumber: chapter.number,
+      chapterSubtitle: chapter.subtitle,
+      chapterTitle: chapter.fullTitle,
+      startParaIndex: 0,
+      endParaIndex: -1,
+      html: `
+        <div class="chapter-page">
+          <span class="chapter-bignum" aria-hidden="true">${String(chapter.id).padStart(2, '0')}</span>
+          <div class="chapter-page-inner">${chapterHeadHtml(chapter)}</div>
         </div>
       `
     };
@@ -261,46 +359,45 @@
       chapterId: CREDITS_CHAPTER_ID,
       chapterTitle: '작가의 말',
       startParaIndex: 0,
-      endParaIndex: 0,
-      html: `
-        <div class="cover-layout credits-layout">
-          <div class="cover-frame credits-frame">
-            ${creditsInnerHtml(true)}
-          </div>
-        </div>
-      `
+      endParaIndex: -1,
+      html: `<div class="credits-page">${creditsInnerHtml(true)}</div>`
     };
+  }
+
+  function contentHeaderHtml(chapterTitle) {
+    return `<div class="page-header-strip"><span class="rh-left">반추 返追</span><span class="rh-right">${escapeHtml(chapterTitle)}</span></div>`;
+  }
+
+  function contentFooterHtml(pageNo) {
+    return `<div class="page-footer-strip"><span>${pageNo}</span></div>`;
   }
 
   function paginateNovel() {
     const novel = window.NOVEL_DATA;
     if (!novel || !novel.chapters) return;
 
-    // Match measureBox dimensions to actual bookViewport
+    // Match measureBox dimensions to the live viewport
     const rect = el.bookViewport.getBoundingClientRect();
     const width = rect.width || Math.min(540, window.innerWidth);
     const height = rect.height || window.innerHeight;
-
     el.measureBox.style.width = width + 'px';
     el.measureBox.style.height = height + 'px';
 
     const pages = [];
     const chapterStartPages = {};
+    let pageNo = 0;
 
-    // Page 0 is always Cover
     pages.push(buildCoverPageObject());
 
-    // Measure available body height inside a standard page
-    el.measureBox.innerHTML = `
-      <div class="page-header-strip"><span>반추 返追</span><span>제1장</span></div>
-      <div class="page-body-content" id="measureBody"></div>
-      <div class="page-footer-strip"><span>1장</span><span>1 / 100</span></div>
-    `;
+    // Available body height inside a standard content page
+    el.measureBox.innerHTML = `${contentHeaderHtml('제1장')}<div class="page-body-content" id="measureBody"></div>${contentFooterHtml(1)}`;
     const measureBody = document.getElementById('measureBody');
     const maxBodyHeight = measureBody.clientHeight;
 
     novel.chapters.forEach((chapter) => {
       chapterStartPages[chapter.id] = pages.length;
+      pages.push(buildChapterPageObject(chapter));
+
       const paras = chapter.paragraphs;
       let pIdx = 0;
       let isFirstPageOfChapter = true;
@@ -311,13 +408,9 @@
         const pageParas = [];
 
         if (isFirstPageOfChapter) {
-          const opener = document.createElement('div');
-          opener.className = 'chapter-opener';
-          opener.innerHTML = `
-            <span class="chapter-opener-num">${chapter.number}</span>
-            <h2 class="chapter-opener-title">${chapter.subtitle}</h2>
-          `;
-          measureBody.appendChild(opener);
+          const sink = document.createElement('div');
+          sink.className = 'chapter-sink';
+          measureBody.appendChild(sink);
         }
 
         while (pIdx < paras.length) {
@@ -326,7 +419,6 @@
           pEl.textContent = paras[pIdx];
           measureBody.appendChild(pEl);
 
-          // Check if adding this paragraph overflows the page body
           if (measureBody.scrollHeight > maxBodyHeight && pageParas.length > 0) {
             measureBody.removeChild(pEl);
             break;
@@ -334,24 +426,12 @@
             pageParas.push(paras[pIdx]);
             pIdx++;
             if (measureBody.scrollHeight > maxBodyHeight) {
-              // Single oversized paragraph: keep it and move on
-              break;
+              break; // single oversized paragraph: keep it, move on
             }
           }
         }
 
-        const endParaIndex = pIdx - 1;
-        const openerHtml = isFirstPageOfChapter
-          ? `<div class="chapter-opener">
-               <span class="chapter-opener-num">${chapter.number}</span>
-               <h2 class="chapter-opener-title">${chapter.subtitle}</h2>
-             </div>`
-          : '';
-
-        const parasHtml = pageParas
-          .map((text) => `<p class="novel-para">${escapeHtml(text)}</p>`)
-          .join('');
-
+        pageNo++;
         pages.push({
           type: 'content',
           chapterId: chapter.id,
@@ -359,61 +439,60 @@
           chapterSubtitle: chapter.subtitle,
           chapterTitle: chapter.fullTitle,
           startParaIndex,
-          endParaIndex,
+          endParaIndex: pIdx - 1,
+          pageNo,
           snippet: pageParas[0] ? pageParas[0].slice(0, 68) : chapter.fullTitle,
-          bodyInnerHtml: openerHtml + parasHtml
+          bodyInnerHtml:
+            (isFirstPageOfChapter ? '<div class="chapter-sink"></div>' : '') +
+            pageParas.map((text) => `<p class="novel-para">${escapeHtml(text)}</p>`).join('')
         });
 
         isFirstPageOfChapter = false;
       }
     });
 
-    // Final page: ending credits (작가의 말)
     pages.push(buildCreditsPageObject());
 
     state.pages = pages;
     state.chapterStartPages = chapterStartPages;
+    state.contentTotal = Math.max(1, pageNo);
     el.pageSlider.max = Math.max(0, pages.length - 1);
   }
 
   function buildFullPageHtml(pageIndex) {
     const page = state.pages[pageIndex];
     if (!page) return '';
-    if (page.type !== 'content') {
-      return page.html;
-    }
-    const totalContentPages = contentPageCount();
-    const progressPct = Math.round((pageIndex / totalContentPages) * 100);
+    if (page.type !== 'content') return page.html;
     return `
-      <div class="page-header-strip">
-        <span>반추 返追</span>
-        <span>${escapeHtml(page.chapterTitle)}</span>
-      </div>
-      <div class="page-body-content">
-        ${page.bodyInnerHtml}
-      </div>
-      <div class="page-footer-strip">
-        <span>${progressPct}% 읽음</span>
-        <span>${pageIndex} / ${totalContentPages}</span>
-      </div>
+      ${contentHeaderHtml(page.chapterTitle)}
+      <div class="page-body-content">${page.bodyInnerHtml}</div>
+      ${contentFooterHtml(page.pageNo)}
     `;
   }
 
-  // Pages array = [cover, ...content, credits]
-  function contentPageCount() {
-    return Math.max(1, state.pages.length - 2);
+  // Folio label for any page (used by bars, slider, TOC, bookmarks, toast)
+  function pageLabel(page) {
+    if (!page) return '';
+    if (page.type === 'cover') return '표지';
+    if (page.type === 'credits') return '끝';
+    if (page.type === 'chapter') return page.chapterNumber;
+    return `${page.pageNo} / ${state.contentTotal}`;
   }
 
-  function escapeHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+  function readPercent(pageIndex) {
+    const page = state.pages[pageIndex];
+    if (!page) return 0;
+    if (page.type === 'credits') return 100;
+    if (page.type === 'content') return Math.round((page.pageNo / state.contentTotal) * 100);
+    if (page.type === 'chapter') {
+      const next = state.pages[pageIndex + 1];
+      return next && next.pageNo ? Math.round(((next.pageNo - 1) / state.contentTotal) * 100) : 0;
+    }
+    return 0;
   }
 
   // =========================================================================
-  // 3. Rendering & 3D Flip Animation
+  // 3. Rendering & 3D Flip
   // =========================================================================
   function renderCurrentPage() {
     const idx = state.currentPageIndex;
@@ -422,7 +501,6 @@
 
     el.currentPage.innerHTML = buildFullPageHtml(idx);
 
-    // Wire "책 펼치기" CTA button if on Cover Page
     const openBtn = el.currentPage.querySelector('[data-action="open-first-chapter"]');
     if (openBtn) {
       openBtn.addEventListener('click', (e) => {
@@ -430,7 +508,6 @@
         turnToPage(1, 'forward');
       });
     }
-    // Wire "처음으로 돌아가기" on Credits Page
     const backBtn = el.currentPage.querySelector('[data-action="back-to-cover"]');
     if (backBtn) {
       backBtn.addEventListener('click', (e) => {
@@ -443,29 +520,28 @@
     saveReadingProgress();
   }
 
+  function setSliderVisual(idx) {
+    el.pageSlider.value = idx;
+    const pct = state.pages.length > 1 ? (idx / (state.pages.length - 1)) * 100 : 0;
+    el.pageSlider.style.setProperty('--progress', pct.toFixed(2) + '%');
+  }
+
   function updateBarsAndIndicators() {
     const idx = state.currentPageIndex;
     const page = state.pages[idx];
     if (!page) return;
 
-    const totalContentPages = contentPageCount();
     el.topChapterLabel.textContent = page.chapterTitle;
     el.bottomChapterInfo.textContent = page.type === 'cover' ? '표지 · 책 펼치기' : page.chapterTitle;
-    if (page.type === 'cover') {
-      el.bottomPageCounter.textContent = `표지 (총 ${totalContentPages}쪽)`;
-    } else if (page.type === 'credits') {
-      el.bottomPageCounter.textContent = '끝';
-    } else {
-      el.bottomPageCounter.textContent = `${idx} / ${totalContentPages}쪽`;
-    }
-    el.pageSlider.value = idx;
+    el.bottomPageCounter.textContent = page.type === 'cover'
+      ? `표지 · 총 ${state.contentTotal}쪽`
+      : page.type === 'content' ? `${pageLabel(page)}쪽` : pageLabel(page);
+    setSliderVisual(idx);
 
-    // Check Bookmark Status
     const isMarked = isPageBookmarked(idx);
     el.btnBookmarkPage.classList.toggle('active', isMarked);
     el.pageRibbon.classList.toggle('hidden', !isMarked);
 
-    // Highlight active chapter in TOC
     document.querySelectorAll('.toc-item').forEach((item) => {
       const cid = Number(item.getAttribute('data-chapter-id'));
       item.classList.toggle('active', cid === page.chapterId);
@@ -482,7 +558,7 @@
 
     const direction = directionOverride || (clamped > state.currentPageIndex ? 'forward' : 'backward');
 
-    // If user manually turns page while TTS is active (and not triggered by TTS auto-advance), restart TTS on new page
+    // Manual turn while TTS is playing (not a TTS auto-advance): restart reading on the new page
     const isManualTurnDuringTts = !onCompleteCallback && state.ttsStatus === 'playing';
     if (isManualTurnDuringTts) {
       cancelSpeechInternal();
@@ -492,20 +568,17 @@
     const newHtml = buildFullPageHtml(clamped);
 
     state.isFlipping = true;
-
     el.flipCard.classList.remove('anim-forward', 'anim-backward');
     el.flipLayer.classList.remove('hidden');
 
     if (direction === 'forward') {
-      // Underlying static page becomes the destination page immediately
       state.currentPageIndex = clamped;
       el.currentPage.innerHTML = newHtml;
       el.flipFront.innerHTML = `<div class="book-page">${oldHtml}</div>`;
       el.flipBack.innerHTML = `<div class="book-page"></div>`;
-      void el.flipCard.offsetWidth; // Force reflow
+      void el.flipCard.offsetWidth;
       el.flipCard.classList.add('anim-forward');
     } else {
-      // Backward flip: underlying static page stays old until animation completes
       el.flipFront.innerHTML = `<div class="book-page">${newHtml}</div>`;
       el.flipBack.innerHTML = `<div class="book-page"></div>`;
       void el.flipCard.offsetWidth;
@@ -543,7 +616,7 @@
   }
 
   // =========================================================================
-  // 4. Scroll Mode Support (Instant Focus Switch)
+  // 4. Scroll Mode
   // =========================================================================
   function renderScrollModeContent() {
     const novel = window.NOVEL_DATA;
@@ -554,10 +627,7 @@
       const paras = chap.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('');
       htmlParts.push(`
         <section class="scroll-chapter-block" id="scroll-chap-${chap.id}" data-chapter-id="${chap.id}">
-          <div class="chapter-opener">
-            <span class="chapter-opener-num">${chap.number}</span>
-            <h2 class="chapter-opener-title">${chap.subtitle}</h2>
-          </div>
+          <div class="scroll-chapter-head">${chapterHeadHtml(chap)}</div>
           ${paras}
         </section>
       `);
@@ -576,69 +646,65 @@
     if (state.mode === 'scroll') {
       el.bookViewport.style.display = 'none';
       el.scrollViewport.classList.remove('hidden');
-      el.modeIcon.textContent = '📜';
-      el.modeText.textContent = '스크롤 모드';
+      el.modeIcon.innerHTML = MODE_ICONS.scroll;
+      el.modeText.textContent = '스크롤';
       if (!el.scrollContent.innerHTML.trim()) {
         renderScrollModeContent();
       }
-      // Scroll to current chapter
       const curPage = state.pages[state.currentPageIndex];
       if (curPage && curPage.chapterId > 0) {
-        const chapNode = document.getElementById(`scroll-chap-${curPage.chapterId}`);
+        const nodeId = curPage.chapterId === CREDITS_CHAPTER_ID ? 'scroll-credits' : `scroll-chap-${curPage.chapterId}`;
+        const chapNode = document.getElementById(nodeId);
         if (chapNode) chapNode.scrollIntoView({ behavior: 'instant' });
       }
     } else {
       el.scrollViewport.classList.add('hidden');
       el.bookViewport.style.display = 'block';
-      el.modeIcon.textContent = '📖';
-      el.modeText.textContent = '3D 책넘김';
+      el.modeIcon.innerHTML = MODE_ICONS.flip;
+      el.modeText.textContent = '책넘김';
       paginateNovel();
       renderCurrentPage();
     }
   }
 
   // =========================================================================
-  // 5. Table of Contents & Bookmarks
+  // 5. TOC & Bookmarks
   // =========================================================================
+  function tocItemHtml({ chapterId, targetPage, motif, num, title, right }) {
+    return `
+      <li class="toc-item ${state.currentPageIndex === targetPage ? 'active' : ''}" data-chapter-id="${chapterId}" data-target-page="${targetPage}">
+        <span class="toc-motif">${motif}</span>
+        <div class="toc-item-left">
+          <span class="toc-chap-num">${num}</span>
+          <span class="toc-chap-title">${escapeHtml(title)}</span>
+        </div>
+        <span class="toc-page-num">${right}</span>
+      </li>
+    `;
+  }
+
   function renderTocList() {
     const novel = window.NOVEL_DATA;
     if (!novel) return;
 
     const items = [];
-    // Cover entry
-    items.push(`
-      <li class="toc-item ${state.currentPageIndex === 0 ? 'active' : ''}" data-chapter-id="0" data-target-page="0">
-        <div class="toc-item-left">
-          <span class="toc-chap-num">COVER</span>
-          <span class="toc-chap-title">표지 — 반추 (返追)</span>
-        </div>
-        <span class="toc-page-num">표지</span>
-      </li>
-    `);
+    items.push(tocItemHtml({ chapterId: 0, targetPage: 0, motif: CHAPTER_MOTIFS.cover, num: 'COVER', title: '표지 — 반추 (返追)', right: '표지' }));
 
     novel.chapters.forEach((chap) => {
       const startPage = state.chapterStartPages[chap.id] || 1;
-      items.push(`
-        <li class="toc-item" data-chapter-id="${chap.id}" data-target-page="${startPage}">
-          <div class="toc-item-left">
-            <span class="toc-chap-num">${chap.number}</span>
-            <span class="toc-chap-title">${chap.subtitle}</span>
-          </div>
-          <span class="toc-page-num">${startPage}쪽</span>
-        </li>
-      `);
+      const firstContent = state.pages[startPage + 1];
+      const pageNo = firstContent && firstContent.pageNo ? firstContent.pageNo : 1;
+      items.push(tocItemHtml({
+        chapterId: chap.id,
+        targetPage: startPage,
+        motif: CHAPTER_MOTIFS[chap.id] || CHAPTER_MOTIFS.cover,
+        num: chap.number,
+        title: chap.subtitle,
+        right: `${pageNo}쪽`
+      }));
     });
 
-    // Credits entry
-    items.push(`
-      <li class="toc-item" data-chapter-id="${CREDITS_CHAPTER_ID}" data-target-page="${state.pages.length - 1}">
-        <div class="toc-item-left">
-          <span class="toc-chap-num">EPILOGUE</span>
-          <span class="toc-chap-title">작가의 말</span>
-        </div>
-        <span class="toc-page-num">끝</span>
-      </li>
-    `);
+    items.push(tocItemHtml({ chapterId: CREDITS_CHAPTER_ID, targetPage: state.pages.length - 1, motif: CHAPTER_MOTIFS.end, num: 'EPILOGUE', title: '작가의 말', right: '끝' }));
 
     el.tocList.innerHTML = items.join('');
     el.tocList.querySelectorAll('.toc-item').forEach((li) => {
@@ -659,6 +725,11 @@
         }
       });
     });
+
+    // Overall progress strip in the drawer header
+    const pct = readPercent(state.currentPageIndex);
+    el.drawerProgressLabel.textContent = `${pct}% 읽음`;
+    el.drawerProgressFill.style.width = pct + '%';
   }
 
   function isPageBookmarked(pageIndex) {
@@ -702,6 +773,7 @@
     updateBarsAndIndicators();
   }
 
+  // Page index that contains (chapterId, paraIndex); falls back to the chapter title page
   function findPageForParagraph(chapterId, paraIndex) {
     for (let i = 1; i < state.pages.length; i++) {
       const p = state.pages[i];
@@ -722,12 +794,13 @@
     }
     el.bookmarkEmptyState.classList.add('hidden');
     el.bookmarkList.innerHTML = state.bookmarks.map((bm, i) => {
-      const pageNum = findPageForParagraph(bm.chapterId, bm.paraIndex);
+      const pageIdx = findPageForParagraph(bm.chapterId, bm.paraIndex);
+      const folio = (state.pages[pageIdx] && state.pages[pageIdx].pageNo) || '';
       return `
-        <li class="bookmark-item" data-bm-index="${i}" data-target-page="${pageNum}">
+        <li class="bookmark-item" data-bm-index="${i}" data-target-page="${pageIdx}">
           <div class="bookmark-item-top">
-            <span>🔖 ${escapeHtml(bm.chapterTitle)}</span>
-            <span>${pageNum}쪽 · ${bm.savedAt}</span>
+            <span>${escapeHtml(bm.chapterTitle)}</span>
+            <span>${folio ? folio + '쪽 · ' : ''}${bm.savedAt}</span>
           </div>
           <p class="bookmark-snippet">${escapeHtml(bm.snippet)}…</p>
         </li>
@@ -744,7 +817,7 @@
   }
 
   // =========================================================================
-  // 5B. TTS Audiobook Engine (Soft Male Voice, Auto Page Flip, Play/Pause/Stop)
+  // 6. TTS Audiobook Engine
   // =========================================================================
   const synth = window.speechSynthesis || null;
   let cachedMaleVoice = null;
@@ -766,7 +839,7 @@
     return MALE_KEYWORDS.some((kw) => n.includes(kw));
   }
 
-  // Higher score = better storytelling voice. Male first, then neural/natural quality, then online (non-local) engines.
+  // Higher = better storytelling voice: male first, then neural quality, then online engines
   function scoreVoice(v) {
     const n = v.name.toLowerCase();
     let s = 0;
@@ -783,7 +856,6 @@
     return ko.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a))[0];
   }
 
-  // User-picked voice (settings) wins; otherwise auto-select.
   function resolveTtsVoice() {
     if (state.ttsVoiceURI) {
       const picked = getKoreanVoices().find((v) => v.voiceURI === state.ttsVoiceURI);
@@ -842,18 +914,19 @@
     el.btnTtsSpeed.textContent = state.ttsRate.toFixed(1) + 'x';
 
     const page = state.pages[state.currentPageIndex];
-    const chapLabel = page && page.type !== 'cover' ? page.chapterNumber : '1장';
+    const chapLabel = (page && page.chapterNumber) || '1장';
+    const where = page && page.type === 'content' ? ` (${page.pageNo}쪽)` : '';
     if (isPlaying) {
-      el.ttsStatusText.textContent = `${chapLabel} 낭독 중 (${state.currentPageIndex}쪽)`;
+      el.ttsStatusText.textContent = `${chapLabel} 낭독 중${where}`;
     } else if (isPaused) {
-      el.ttsStatusText.textContent = `일시정지됨 (${state.currentPageIndex}쪽)`;
+      el.ttsStatusText.textContent = `일시정지됨${where}`;
     } else {
       el.ttsStatusText.textContent = '문단을 탭하면 그곳부터 읽어요';
     }
   }
 
   function cancelSpeechInternal() {
-    currentUtterance = null; // Stale utterance callbacks compare against this and bail out
+    currentUtterance = null; // stale utterance callbacks compare against this and bail out
     if (synth) {
       synth.cancel();
       // Chrome: a new speak() after cancel() stays silent while the engine is still flagged paused
@@ -861,22 +934,42 @@
     }
   }
 
-  // Start reading from a specific paragraph index on the current page (tap-to-read)
-  function speakFromParagraph(offset) {
-    if (!synth || state.isFlipping) return;
+  // Speak one text with the tuned voice; onDone fires only if this utterance is still current.
+  function speakText(text, onDone) {
     cancelSpeechInternal();
-    el.ttsPlayerBar.classList.remove('hidden');
-    state.ttsParaOffset = Math.max(0, offset);
-    state.ttsStatus = 'playing';
-    speakCurrentParagraph();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'ko-KR';
+    const { voice, userPicked } = resolveTtsVoice();
+    if (voice) utter.voice = voice;
+    // Native male voice → warm 0.94; user-picked other voice → natural 1.0; auto fallback → 0.78 for a gentle male tone
+    utter.pitch = isLikelyMaleVoice(voice) ? 0.94 : (userPicked ? 1.0 : 0.78);
+    utter.rate = state.ttsRate * 0.95;
+
+    const finish = () => {
+      if (currentUtterance !== utter || state.ttsStatus !== 'playing') return;
+      onDone();
+    };
+    utter.onend = finish;
+    utter.onerror = (ev) => {
+      if (currentUtterance !== utter) return;
+      if (ev.error === 'interrupted' || ev.error === 'canceled') return;
+      finish();
+    };
+    currentUtterance = utter;
+    synth.speak(utter);
   }
 
-  // Returns the novel paragraph under a pointer event, only while the TTS player is open
-  function paragraphUnderPointer(e) {
-    if (el.ttsPlayerBar.classList.contains('hidden')) return null;
-    if (typeof e.clientX !== 'number') return null;
-    const stack = document.elementsFromPoint(e.clientX, e.clientY) || [];
-    return stack.find((n) => n.matches && n.matches('#currentPage p.novel-para')) || null;
+  function ttsAdvancePage() {
+    clearTtsHighlight();
+    if (state.currentPageIndex < state.pages.length - 1) {
+      state.ttsParaOffset = 0;
+      turnToPage(state.currentPageIndex + 1, 'forward', () => {
+        if (state.ttsStatus === 'playing') speakCurrentParagraph();
+      });
+    } else {
+      stopTts();
+      el.ttsStatusText.textContent = '완독 완료';
+    }
   }
 
   function speakCurrentParagraph() {
@@ -885,47 +978,33 @@
       return;
     }
 
-    // If on Cover Page (0), automatically flip to Page 1 first
-    if (state.currentPageIndex === 0) {
+    const page = state.pages[state.currentPageIndex];
+    if (!page) return;
+
+    if (page.type === 'cover') {
       state.ttsStatus = 'playing';
       state.ttsParaOffset = 0;
       updateTtsUi();
-      turnToPage(1, 'forward', () => {
-        if (state.ttsStatus === 'playing') {
-          speakCurrentParagraph();
-        }
-      });
+      ttsAdvancePage();
       return;
     }
 
-    const page = state.pages[state.currentPageIndex];
-    if (!page || page.type === 'cover') return;
-
-    // Credits page has no novel paragraphs → reading finished
     if (page.type === 'credits') {
       stopTts();
       el.ttsStatusText.textContent = '완독 완료';
       return;
     }
 
-    const paraNodes = el.currentPage.querySelectorAll('p.novel-para');
-    const totalParasOnPage = paraNodes.length;
+    if (page.type === 'chapter') {
+      state.ttsStatus = 'playing';
+      updateTtsUi();
+      speakText(`${page.chapterNumber}. ${page.chapterSubtitle}.`, ttsAdvancePage);
+      return;
+    }
 
-    // If all paragraphs on the current page have been read, auto-flip to next page!
-    if (state.ttsParaOffset >= totalParasOnPage) {
-      clearTtsHighlight();
-      if (state.currentPageIndex < state.pages.length - 1) {
-        state.ttsParaOffset = 0;
-        turnToPage(state.currentPageIndex + 1, 'forward', () => {
-          if (state.ttsStatus === 'playing') {
-            speakCurrentParagraph();
-          }
-        });
-      } else {
-        // Reached the end of the entire novel
-        stopTts();
-        el.ttsStatusText.textContent = '완독 완료';
-      }
+    const paraNodes = el.currentPage.querySelectorAll('p.novel-para');
+    if (state.ttsParaOffset >= paraNodes.length) {
+      ttsAdvancePage();
       return;
     }
 
@@ -937,51 +1016,31 @@
       return;
     }
 
-    cancelSpeechInternal();
-
-    // Prefix chapter title naturally if it's the very first paragraph of a chapter
-    let spokenText = textToRead;
-    if (state.ttsParaOffset === 0 && page.startParaIndex === 0) {
-      spokenText = `${page.chapterTitle}. ${textToRead}`;
-    }
-
-    const utter = new SpeechSynthesisUtterance(spokenText);
-    utter.lang = 'ko-KR';
-    const { voice, userPicked } = resolveTtsVoice();
-    if (voice) {
-      utter.voice = voice;
-    }
-
-    // Tune for a soft, warm, calm male storytelling voice:
-    // - Native male voice (e.g. Microsoft InJoon): natural warm pitch 0.94.
-    // - User explicitly picked a non-male voice: leave it natural (1.0).
-    // - Auto-selected non-male fallback: lower pitch (0.78) for a gentle male tone.
-    utter.pitch = isLikelyMaleVoice(voice) ? 0.94 : (userPicked ? 1.0 : 0.78);
-    utter.rate = state.ttsRate * 0.95; // Slightly relaxed literary pacing
-
     highlightCurrentParagraph(state.ttsParaOffset);
     state.ttsStatus = 'playing';
     updateTtsUi();
-
-    // Identity guard: synth.cancel() fires end/error asynchronously for the old utterance,
-    // which would otherwise double-advance ttsParaOffset after a restart.
-    utter.onend = () => {
-      if (currentUtterance !== utter || state.ttsStatus !== 'playing') return;
+    speakText(textToRead, () => {
       state.ttsParaOffset++;
       speakCurrentParagraph();
-    };
+    });
+  }
 
-    utter.onerror = (ev) => {
-      if (currentUtterance !== utter) return;
-      if (ev.error === 'interrupted' || ev.error === 'canceled') return;
-      if (state.ttsStatus === 'playing') {
-        state.ttsParaOffset++;
-        speakCurrentParagraph();
-      }
-    };
+  // Start reading from a specific paragraph on the current page (tap-to-read)
+  function speakFromParagraph(offset) {
+    if (!synth || state.isFlipping) return;
+    cancelSpeechInternal();
+    el.ttsPlayerBar.classList.remove('hidden');
+    state.ttsParaOffset = Math.max(0, offset);
+    state.ttsStatus = 'playing';
+    speakCurrentParagraph();
+  }
 
-    currentUtterance = utter;
-    synth.speak(utter);
+  // The novel paragraph under a pointer event — only while the TTS player is open
+  function paragraphUnderPointer(e) {
+    if (el.ttsPlayerBar.classList.contains('hidden')) return null;
+    if (typeof e.clientX !== 'number') return null;
+    const stack = document.elementsFromPoint(e.clientX, e.clientY) || [];
+    return stack.find((n) => n.matches && n.matches('#currentPage p.novel-para')) || null;
   }
 
   function startOrResumeTts() {
@@ -989,24 +1048,18 @@
     el.ttsPlayerBar.classList.remove('hidden');
 
     if (state.ttsStatus === 'playing') {
-      // Pause
       state.ttsStatus = 'paused';
-      if (synth.speaking) {
-        synth.pause();
-      }
+      if (synth.speaking) synth.pause();
       updateTtsUi();
     } else if (state.ttsStatus === 'paused') {
-      // Resume
       state.ttsStatus = 'playing';
       if (synth.paused) {
         synth.resume();
         updateTtsUi();
       } else {
-        // Fallback if browser cleared paused utterance (common on mobile Safari/Chrome)
-        speakCurrentParagraph();
+        speakCurrentParagraph(); // browser dropped the paused utterance (common on mobile)
       }
     } else {
-      // Stopped -> Start from beginning of current page (or clicked paragraph)
       state.ttsStatus = 'playing';
       speakCurrentParagraph();
     }
@@ -1031,24 +1084,25 @@
   }
 
   // =========================================================================
-  // 6. Ambient Starfield Canvas Animation
+  // 7. Ambient Starfield (with occasional falling star)
   // =========================================================================
   function initStarfield() {
     const canvas = el.starCanvas;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let stars = [];
+    let shoot = null;
 
     function resizeStarCanvas() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      const count = Math.floor((canvas.width * canvas.height) / 14000);
-      stars = Array.from({ length: Math.min(90, Math.max(30, count)) }, () => ({
+      const count = Math.floor((canvas.width * canvas.height) / 13000);
+      stars = Array.from({ length: Math.min(110, Math.max(30, count)) }, () => ({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        r: Math.random() * 1.4 + 0.4,
+        r: Math.random() * 1.4 + 0.35,
         phase: Math.random() * Math.PI * 2,
-        speed: Math.random() * 0.018 + 0.005
+        speed: Math.random() * 0.016 + 0.004
       }));
     }
 
@@ -1060,11 +1114,40 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         for (const s of stars) {
           s.phase += s.speed;
-          const alpha = 0.25 + 0.55 * Math.sin(s.phase);
+          const alpha = 0.22 + 0.55 * Math.sin(s.phase);
           ctx.beginPath();
           ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(229, 192, 123, ${Math.max(0.08, alpha)})`;
+          ctx.fillStyle = `rgba(216, 181, 106, ${Math.max(0.06, alpha)})`;
           ctx.fill();
+        }
+
+        // A star falls roughly every ~12s, drifting down-left and fading
+        if (!shoot && Math.random() < 0.0014) {
+          shoot = {
+            x: canvas.width * (0.3 + Math.random() * 0.65),
+            y: canvas.height * Math.random() * 0.4,
+            vx: -4.2,
+            vy: 2.6,
+            life: 1,
+            len: 110
+          };
+        }
+        if (shoot) {
+          const tx = shoot.x + shoot.len * 0.85;
+          const ty = shoot.y - shoot.len * 0.53;
+          const grad = ctx.createLinearGradient(shoot.x, shoot.y, tx, ty);
+          grad.addColorStop(0, `rgba(242, 220, 163, ${0.9 * shoot.life})`);
+          grad.addColorStop(1, 'rgba(242, 220, 163, 0)');
+          ctx.strokeStyle = grad;
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(shoot.x, shoot.y);
+          ctx.lineTo(tx, ty);
+          ctx.stroke();
+          shoot.x += shoot.vx;
+          shoot.y += shoot.vy;
+          shoot.life -= 0.018;
+          if (shoot.life <= 0) shoot = null;
         }
       }
       requestAnimationFrame(drawStars);
@@ -1073,7 +1156,7 @@
   }
 
   // =========================================================================
-  // 7. UI Events, Touch Swipe, Keyboard & Resize Handling
+  // 8. UI Events
   // =========================================================================
   function toggleUiBars(forceState) {
     state.uiVisible = typeof forceState === 'boolean' ? forceState : !state.uiVisible;
@@ -1095,8 +1178,9 @@
       if (!saved || !saved.chapterId) return;
 
       const targetPage = findPageForParagraph(saved.chapterId, saved.paraIndex || 0);
-      if (targetPage > 1) {
-        el.resumeToastMsg.textContent = `${saved.chapterTitle} (${targetPage}쪽) 이어 읽기`;
+      const target = state.pages[targetPage];
+      if (target && target.type === 'content' && target.pageNo > 1) {
+        el.resumeToastMsg.textContent = `${saved.chapterTitle} · ${target.pageNo}쪽부터`;
         el.resumeToast.classList.remove('hidden');
 
         el.btnResumeYes.onclick = () => {
@@ -1115,6 +1199,7 @@
 
   function preservePositionAndRepaginate() {
     const curPage = state.pages[state.currentPageIndex];
+    const type = curPage ? curPage.type : 'cover';
     const chapId = curPage ? curPage.chapterId : 0;
     const paraIdx = curPage ? curPage.startParaIndex : 0;
 
@@ -1122,8 +1207,12 @@
     renderTocList();
     renderBookmarkList();
 
-    if (chapId === 0) {
+    if (type === 'cover') {
       state.currentPageIndex = 0;
+    } else if (type === 'credits') {
+      state.currentPageIndex = state.pages.length - 1;
+    } else if (type === 'chapter') {
+      state.currentPageIndex = state.chapterStartPages[chapId] || 1;
     } else {
       state.currentPageIndex = findPageForParagraph(chapId, paraIdx);
     }
@@ -1131,7 +1220,7 @@
   }
 
   function bindEvents() {
-    // Touch/Click Zones — while the TTS player is open, tapping a paragraph reads from there instead
+    // Touch/click zones — while the TTS player is open, tapping a paragraph reads from there
     function zoneClick(fallback) {
       return (e) => {
         const para = paragraphUnderPointer(e);
@@ -1147,7 +1236,7 @@
     el.zoneNext.addEventListener('click', zoneClick(nextPage));
     el.zoneCenter.addEventListener('click', zoneClick(toggleUiBars));
 
-    // Touch Swipe Gesture Support on Book Viewport
+    // Swipe
     let touchStartX = 0;
     let touchStartY = 0;
     el.bookViewport.addEventListener('touchstart', (e) => {
@@ -1168,24 +1257,23 @@
       }
     }, { passive: true });
 
-    // Bottom Bar Controls
+    // Bottom bar
     el.btnPrevPage.addEventListener('click', prevPage);
     el.btnNextPage.addEventListener('click', nextPage);
     el.pageSlider.addEventListener('input', (e) => {
       const val = Number(e.target.value);
       const page = state.pages[val];
       if (page) {
-        el.bottomPageCounter.textContent = page.type === 'cover' ? '표지'
-          : page.type === 'credits' ? '끝'
-          : `${val} / ${contentPageCount()}쪽`;
+        el.bottomPageCounter.textContent = page.type === 'content' ? `${pageLabel(page)}쪽` : pageLabel(page);
         el.bottomChapterInfo.textContent = page.chapterTitle;
+        setSliderVisual(val);
       }
     });
     el.pageSlider.addEventListener('change', (e) => {
       turnToPage(Number(e.target.value));
     });
 
-    // Keyboard Navigation
+    // Keyboard
     window.addEventListener('keydown', (e) => {
       if (state.mode !== 'flip') return;
       if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
@@ -1199,7 +1287,7 @@
       }
     });
 
-    // TOC & Bookmarks Drawer
+    // TOC drawer
     el.btnOpenToc.addEventListener('click', () => {
       renderTocList();
       renderBookmarkList();
@@ -1223,10 +1311,9 @@
       el.tabPanelToc.classList.add('hidden');
     });
 
-    // Bookmark Toggle
     el.btnBookmarkPage.addEventListener('click', toggleCurrentPageBookmark);
 
-    // Settings Sheet
+    // Settings sheet
     el.btnOpenSettings.addEventListener('click', () => {
       el.tocDrawer.classList.add('hidden');
       el.settingsPanel.classList.toggle('hidden');
@@ -1234,7 +1321,6 @@
     });
     el.btnCloseSettings.addEventListener('click', closeDrawers);
 
-    // Theme Selection
     document.querySelectorAll('[data-theme-select]').forEach((btn) => {
       btn.addEventListener('click', () => {
         state.theme = btn.getAttribute('data-theme-select');
@@ -1243,7 +1329,6 @@
       });
     });
 
-    // Font Family Selection
     document.querySelectorAll('[data-font-select]').forEach((btn) => {
       btn.addEventListener('click', () => {
         state.fontKey = btn.getAttribute('data-font-select');
@@ -1253,56 +1338,29 @@
       });
     });
 
-    // Font Size Stepper
-    el.btnFontDec.addEventListener('click', () => {
-      if (state.fontSize > 14) {
-        state.fontSize -= 1;
-        applyVisualSettings();
-        saveSettings();
-        preservePositionAndRepaginate();
-      }
-    });
-    el.btnFontInc.addEventListener('click', () => {
-      if (state.fontSize < 26) {
-        state.fontSize += 1;
-        applyVisualSettings();
-        saveSettings();
-        preservePositionAndRepaginate();
-      }
-    });
+    const stepSetting = (apply) => () => {
+      apply();
+      applyVisualSettings();
+      saveSettings();
+      preservePositionAndRepaginate();
+    };
+    el.btnFontDec.addEventListener('click', stepSetting(() => { if (state.fontSize > 14) state.fontSize -= 1; }));
+    el.btnFontInc.addEventListener('click', stepSetting(() => { if (state.fontSize < 26) state.fontSize += 1; }));
+    el.btnLineDec.addEventListener('click', stepSetting(() => { if (state.lineHeight > 1.55) state.lineHeight = Number((state.lineHeight - 0.1).toFixed(2)); }));
+    el.btnLineInc.addEventListener('click', stepSetting(() => { if (state.lineHeight < 2.35) state.lineHeight = Number((state.lineHeight + 0.1).toFixed(2)); }));
 
-    // Line Height Stepper
-    el.btnLineDec.addEventListener('click', () => {
-      if (state.lineHeight > 1.55) {
-        state.lineHeight = Number((state.lineHeight - 0.1).toFixed(2));
-        applyVisualSettings();
-        saveSettings();
-        preservePositionAndRepaginate();
-      }
-    });
-    el.btnLineInc.addEventListener('click', () => {
-      if (state.lineHeight < 2.35) {
-        state.lineHeight = Number((state.lineHeight + 0.1).toFixed(2));
-        applyVisualSettings();
-        saveSettings();
-        preservePositionAndRepaginate();
-      }
-    });
-
-    // Mode Toggle (3D Flip <-> Scroll)
+    // Mode toggle
     el.btnToggleMode.addEventListener('click', () => {
       state.mode = state.mode === 'flip' ? 'scroll' : 'flip';
       saveSettings();
       updateModeView();
     });
 
-    // TTS Audiobook Controls
+    // TTS
     el.btnOpenTts.addEventListener('click', () => {
       if (el.ttsPlayerBar.classList.contains('hidden')) {
         el.ttsPlayerBar.classList.remove('hidden');
-        if (state.ttsStatus !== 'playing') {
-          startOrResumeTts();
-        }
+        if (state.ttsStatus !== 'playing') startOrResumeTts();
       } else {
         startOrResumeTts();
       }
@@ -1315,40 +1373,35 @@
       el.ttsPlayerBar.classList.add('hidden');
     });
 
-    // TTS Voice Picker (Settings)
     if (el.ttsVoiceSelect) {
       el.ttsVoiceSelect.addEventListener('change', (e) => {
         state.ttsVoiceURI = e.target.value || '';
         saveSettings();
-        if (state.ttsStatus === 'playing') {
-          speakCurrentParagraph(); // Restart current paragraph with the new voice
-        }
+        if (state.ttsStatus === 'playing') speakCurrentParagraph();
       });
     }
 
-    // Clean up speech if tab/window is closed
     window.addEventListener('beforeunload', () => {
       cancelSpeechInternal();
     });
 
-    // Responsive Window Resize Repagination
+    // Resize → repaginate (flip mode)
     let resizeTimer = null;
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        if (state.mode === 'flip') {
-          preservePositionAndRepaginate();
-        }
+        if (state.mode === 'flip') preservePositionAndRepaginate();
       }, 220);
     });
   }
 
   // =========================================================================
-  // 9. Initialization
+  // 9. Init
   // =========================================================================
   function init() {
     loadSavedSettings();
     applyVisualSettings();
+    el.modeIcon.innerHTML = MODE_ICONS.flip;
     initStarfield();
     paginateNovel();
     renderTocList();
@@ -1361,12 +1414,10 @@
     populateVoiceSelect();
     checkSavedProgressToast();
 
-    // Ensure accurate pagination once web fonts finish loading
+    // Re-measure once web fonts are in
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(() => {
-        if (state.mode === 'flip') {
-          preservePositionAndRepaginate();
-        }
+        if (state.mode === 'flip') preservePositionAndRepaginate();
       });
     }
   }
@@ -1377,4 +1428,3 @@
     init();
   }
 })();
-

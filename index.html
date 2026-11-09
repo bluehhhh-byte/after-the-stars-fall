@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b1021" id="metaThemeColor" />
+  <meta name="theme-color" content="#04060d" id="metaThemeColor" />
   <meta name="description" content="반추 (返追) — 3D 페이지 플립 웹소설 북 리더" />
   <title>반추 (返追) — 웹북 리더</title>
 
-  <!-- Google Fonts: Gowun Batang, Noto Serif KR, Pretendard -->
+  <!-- Fonts: Gowun Batang (body), Nanum Myeongjo (display), Noto Serif KR, Pretendard (UI) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Serif+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -16,13 +16,13 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- Ambient Starfield Canvas (Active on Cover & Starlight Theme) -->
+  <!-- Ambient Starfield Canvas (starlight theme, outside the book) -->
   <canvas id="starfieldCanvas" aria-hidden="true"></canvas>
 
-  <!-- Ambient Paper Grain Overlay -->
+  <!-- Paper grain overlay -->
   <div class="paper-grain" aria-hidden="true"></div>
 
-  <!-- Resume Reading Toast Notification -->
+  <!-- Resume Reading Toast -->
   <div id="resumeToast" class="resume-toast hidden" role="status" aria-live="polite">
     <div class="resume-toast-text">
       <span class="resume-badge">이어 읽기</span>
@@ -34,67 +34,52 @@
     </div>
   </div>
 
-  <!-- Main Reader Shell (Centered Mobile/Single-Column Book Viewport) -->
+  <!-- Reader Shell -->
   <main id="appShell" class="app-shell">
 
-    <!-- Top Floating Reader Bar -->
+    <!-- Top Bar -->
     <header id="topBar" class="top-bar visible">
       <div class="top-bar-left">
         <button id="btnOpenToc" class="icon-btn" title="목차 및 책갈피" aria-label="목차 열기">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="12" x2="16" y2="12"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
+          <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h11M4 18h16"/></svg>
         </button>
         <span id="topChapterLabel" class="top-chapter-label">표지</span>
       </div>
 
       <div class="top-bar-right">
-        <!-- View Mode Toggle: 3D Flip vs Scroll -->
-        <button id="btnToggleMode" class="pill-btn" title="읽기 모드 전환 (3D 책넘김 / 스크롤)">
-          <span id="modeIcon">📖</span>
-          <span id="modeText">3D 책넘김</span>
+        <!-- View Mode Toggle -->
+        <button id="btnToggleMode" class="pill-btn" title="읽기 모드 전환 (책넘김 / 스크롤)">
+          <span id="modeIcon" class="mode-icon"></span>
+          <span id="modeText">책넘김</span>
         </button>
 
-        <!-- TTS Audiobook Player Toggle Button -->
+        <!-- TTS -->
         <button id="btnOpenTts" class="icon-btn" title="오디오북 낭독 (TTS)" aria-label="오디오북 낭독 열기">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
-          </svg>
+          <svg viewBox="0 0 24 24"><path d="M4 17v-5a8 8 0 0 1 16 0v5"/><path d="M4 14h2.5a1.5 1.5 0 0 1 1.5 1.5v3A1.5 1.5 0 0 1 6.5 20H4zM20 14h-2.5a1.5 1.5 0 0 0-1.5 1.5v3a1.5 1.5 0 0 0 1.5 1.5H20z"/></svg>
         </button>
 
-        <!-- Bookmark Current Page Button -->
+        <!-- Bookmark -->
         <button id="btnBookmarkPage" class="icon-btn" title="현재 페이지 책갈피" aria-label="책갈피 추가/해제">
-          <svg id="bookmarkSvg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-          </svg>
+          <svg id="bookmarkSvg" viewBox="0 0 24 24"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4.2L6 21z"/></svg>
         </button>
 
-        <!-- Typography & Theme Settings Button -->
+        <!-- Settings -->
         <button id="btnOpenSettings" class="icon-btn" title="테마 및 글자 설정" aria-label="설정 열기">
           <span class="aa-icon">가</span>
         </button>
       </div>
     </header>
 
-    <!-- 3D Book Container -->
+    <!-- 3D Book Stage -->
     <div id="bookStage" class="book-stage">
       <div id="bookViewport" class="book-viewport">
-
-        <!-- Left Edge Spine Shadow & Binding Crease -->
         <div class="book-spine" aria-hidden="true"></div>
-
-        <!-- Bookmark Ribbon (Visible when current page is bookmarked) -->
         <div id="pageRibbon" class="page-ribbon hidden" title="책갈피된 페이지"></div>
 
-        <!-- Static Base Page (Current Page Content) -->
-        <article id="currentPage" class="book-page current-page" aria-live="polite">
-          <!-- Dynamically Rendered by app.js -->
-        </article>
+        <!-- Static current page -->
+        <article id="currentPage" class="book-page current-page" aria-live="polite"></article>
 
-        <!-- 3D Flipping Sheet Layer (Animated during page turn) -->
+        <!-- Flipping sheet -->
         <div id="flipLayer" class="flip-layer hidden" aria-hidden="true">
           <div id="flipCard" class="flip-card">
             <div id="flipFront" class="flip-face flip-front"></div>
@@ -103,7 +88,7 @@
           <div id="flipShadow" class="flip-shadow"></div>
         </div>
 
-        <!-- Touch / Click Navigation Zones (Left 28% = Prev, Center 44% = Toggle UI, Right 28% = Next) -->
+        <!-- Touch zones: left 28% prev · center 44% toggle UI · right 28% next -->
         <div id="touchZoneOverlay" class="touch-zone-overlay">
           <div id="zonePrev" class="touch-zone zone-prev" title="이전 페이지 (←)"></div>
           <div id="zoneCenter" class="touch-zone zone-center" title="메뉴 표시/숨기기"></div>
@@ -111,46 +96,41 @@
         </div>
       </div>
 
-      <!-- Continuous Scroll Mode Container (Alternative Focus Mode) -->
+      <!-- Scroll mode -->
       <div id="scrollViewport" class="scroll-viewport hidden">
         <div id="scrollContent" class="scroll-content"></div>
       </div>
     </div>
 
-    <!-- Floating TTS Audiobook Mini Player Bar -->
+    <!-- TTS Mini Player -->
     <div id="ttsPlayerBar" class="tts-player-bar hidden" role="region" aria-label="오디오북 낭독 컨트롤러">
       <div class="tts-status-col">
-        <span id="ttsWaveDot" class="tts-wave-dot"></span>
+        <span id="ttsWaveDot" class="tts-wave" aria-hidden="true"><i></i><i></i><i></i></span>
         <span id="ttsStatusText" class="tts-status-text">낭독 대기</span>
       </div>
       <div class="tts-controls-col">
         <button id="btnTtsPlayPause" class="tts-ctrl-btn primary" title="재생 / 일시정지" aria-label="재생 또는 일시정지">
           <span id="ttsPlayIcon">▶</span>
         </button>
-        <button id="btnTtsStop" class="tts-ctrl-btn" title="정지 (현재 페이지 처음부터)" aria-label="정지">
-          ■
-        </button>
+        <button id="btnTtsStop" class="tts-ctrl-btn" title="정지 (현재 페이지 처음부터)" aria-label="정지">■</button>
         <button id="btnTtsSpeed" class="tts-speed-btn" title="낭독 속도 조절">1.0x</button>
         <button id="btnTtsClose" class="tts-close-btn" title="오디오북 닫기" aria-label="오디오북 닫기">✕</button>
       </div>
     </div>
 
-    <!-- Bottom Floating Progress & Page Control Bar -->
+    <!-- Bottom Bar -->
     <footer id="bottomBar" class="bottom-bar visible">
       <div class="bottom-nav-row">
         <button id="btnPrevPage" class="nav-arrow-btn" title="이전 페이지" aria-label="이전 페이지">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
         </button>
-
         <div class="slider-wrap">
           <input type="range" id="pageSlider" class="page-slider" min="0" max="100" value="0" aria-label="페이지 이동 슬라이더" />
         </div>
-
         <button id="btnNextPage" class="nav-arrow-btn" title="다음 페이지" aria-label="다음 페이지">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
         </button>
       </div>
-
       <div class="bottom-meta-row">
         <span id="bottomChapterInfo" class="bottom-chapter-info">표지</span>
         <span id="bottomPageCounter" class="bottom-page-counter">1 / 1</span>
@@ -158,10 +138,10 @@
     </footer>
   </main>
 
-  <!-- Hidden Offscreen Measurement Page (Exact same dimensions as .book-page for flawless auto-pagination) -->
+  <!-- Offscreen measurement page (same .book-page box as the live page) -->
   <div id="measureBox" class="book-page measure-box" aria-hidden="true"></div>
 
-  <!-- Table of Contents & Bookmarks Drawer -->
+  <!-- TOC & Bookmarks Drawer -->
   <div id="drawerBackdrop" class="backdrop hidden"></div>
   <aside id="tocDrawer" class="drawer hidden" aria-label="목차 및 책갈피">
     <div class="drawer-header">
@@ -169,11 +149,18 @@
         <p class="drawer-book-sub">返 追</p>
         <h2 class="drawer-book-title">반추</h2>
       </div>
-      <button id="btnCloseToc" class="icon-btn" aria-label="닫기">✕</button>
+      <button id="btnCloseToc" class="icon-btn" aria-label="닫기">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+    <div class="drawer-progress">
+      <span id="drawerProgressLabel">0% 읽음</span>
+      <div class="drawer-progress-bar"><i id="drawerProgressFill"></i></div>
     </div>
 
     <div class="drawer-tabs">
-      <button id="tabBtnToc" class="drawer-tab active">목차 (8장)</button>
+      <button id="tabBtnToc" class="drawer-tab active">목차</button>
       <button id="tabBtnBookmarks" class="drawer-tab">책갈피 <span id="bookmarkCountBadge" class="count-badge">0</span></button>
     </div>
 
@@ -190,35 +177,40 @@
     </div>
   </aside>
 
-  <!-- Theme & Typography Settings Sheet -->
+  <!-- Settings Sheet -->
   <section id="settingsPanel" class="settings-sheet hidden" aria-label="독서 환경 설정">
+    <div class="sheet-grip" aria-hidden="true"></div>
     <div class="settings-header">
-      <h3>독서 환경 설정</h3>
-      <button id="btnCloseSettings" class="icon-btn" aria-label="설정 닫기">✕</button>
+      <h3>독서 환경</h3>
+      <button id="btnCloseSettings" class="icon-btn" aria-label="설정 닫기">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
     </div>
 
-    <!-- Theme Selector -->
     <div class="setting-group">
-      <label class="setting-label">배경 테마</label>
+      <label class="setting-label">테마</label>
       <div class="theme-grid">
         <button class="theme-chip active" data-theme-select="starlight">
-          <span class="theme-swatch swatch-starlight">✨</span>
-          <span class="theme-name">밤하늘 별빛</span>
+          <span class="theme-swatch swatch-starlight"></span>
+          <span class="theme-name">밤하늘</span>
         </button>
         <button class="theme-chip" data-theme-select="sepia">
-          <span class="theme-swatch swatch-sepia">📜</span>
-          <span class="theme-name">종이책 세피아</span>
+          <span class="theme-swatch swatch-sepia"></span>
+          <span class="theme-name">세피아</span>
         </button>
         <button class="theme-chip" data-theme-select="paper">
-          <span class="theme-swatch swatch-paper">☕</span>
-          <span class="theme-name">순백 모던</span>
+          <span class="theme-swatch swatch-paper"></span>
+          <span class="theme-name">순백</span>
+        </button>
+        <button class="theme-chip" data-theme-select="dawn">
+          <span class="theme-swatch swatch-dawn"></span>
+          <span class="theme-name">새벽</span>
         </button>
       </div>
     </div>
 
-    <!-- Font Family Selector -->
     <div class="setting-group">
-      <label class="setting-label">글꼴 선택</label>
+      <label class="setting-label">글꼴</label>
       <div class="font-grid">
         <button class="font-chip active" data-font-select="gowun" style="font-family: 'Gowun Batang', serif;">고운바탕</button>
         <button class="font-chip" data-font-select="serif" style="font-family: 'Noto Serif KR', serif;">본명조</button>
@@ -227,38 +219,35 @@
       </div>
     </div>
 
-    <!-- TTS Voice Picker -->
+    <div class="setting-row-split">
+      <div class="setting-group">
+        <label class="setting-label">글자 크기</label>
+        <div class="stepper-control">
+          <button id="btnFontDec" class="stepper-btn" aria-label="글자 작게">−</button>
+          <span id="fontSizeVal" class="stepper-val">18px</span>
+          <button id="btnFontInc" class="stepper-btn" aria-label="글자 크게">+</button>
+        </div>
+      </div>
+      <div class="setting-group">
+        <label class="setting-label">줄 간격</label>
+        <div class="stepper-control">
+          <button id="btnLineDec" class="stepper-btn" aria-label="줄간격 좁게">−</button>
+          <span id="lineHeightVal" class="stepper-val">1.95</span>
+          <button id="btnLineInc" class="stepper-btn" aria-label="줄간격 넓게">+</button>
+        </div>
+      </div>
+    </div>
+
     <div class="setting-group">
-      <label class="setting-label" for="ttsVoiceSelect">낭독 음성 <span id="ttsVoiceHint"></span></label>
+      <label class="setting-label" for="ttsVoiceSelect">낭독 음성 <span id="ttsVoiceHint" class="val"></span></label>
       <select id="ttsVoiceSelect" class="voice-select" aria-label="낭독 음성 선택">
         <option value="">자동 선택 (남성 · 자연스러운 음성 우선)</option>
       </select>
       <p class="setting-hint">★ 표시는 신경망(Natural/Online) 고품질 음성입니다. Windows에서는 Edge 브라우저의 “InJoon Online (Natural)”이 가장 자연스럽습니다.</p>
     </div>
-
-    <!-- Font Size & Line Height -->
-    <div class="setting-row-split">
-      <div class="setting-group">
-        <label class="setting-label">글자 크기 <span id="fontSizeVal">18px</span></label>
-        <div class="stepper-control">
-          <button id="btnFontDec" class="stepper-btn" aria-label="글자 작게">가 -</button>
-          <button id="btnFontInc" class="stepper-btn" aria-label="글자 크게">가 +</button>
-        </div>
-      </div>
-
-      <div class="setting-group">
-        <label class="setting-label">줄 간격 <span id="lineHeightVal">1.95</span></label>
-        <div class="stepper-control">
-          <button id="btnLineDec" class="stepper-btn" aria-label="줄간격 좁게">좁게</button>
-          <button id="btnLineInc" class="stepper-btn" aria-label="줄간격 넓게">넓게</button>
-        </div>
-      </div>
-    </div>
   </section>
 
-  <!-- Novel Data & Reader Logic -->
   <script src="novel-data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
-
