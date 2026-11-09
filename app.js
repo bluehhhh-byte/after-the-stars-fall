@@ -305,6 +305,7 @@
             <ellipse class="cover-orb-reflection" cx="200" cy="80" rx="9" ry="3"/>
           </svg>
           <div class="cover-frame-line" aria-hidden="true"></div>
+          <span class="cover-genre">단편소설</span>
           <div class="cover-content">
             <div class="cover-head">
               <span class="cover-rule"></span>
@@ -319,7 +320,7 @@
             </p>
             <div class="cover-foot">
               <button type="button" class="btn-open-book" data-action="open-first-chapter">책 펼치기 →</button>
-              <span class="cover-date-meta">2026. 11. 9. 작성. 박준성.</span>
+              <span class="cover-date-meta">2026년 11월. 폄.</span>
             </div>
           </div>
         </div>`
@@ -329,13 +330,13 @@
   function chapterHeadHtml(chapter) {
     const motif = CHAPTER_MOTIFS[chapter.id] || CHAPTER_MOTIFS.cover;
     const chars = chapter.paragraphs.reduce((n, p) => n + p.length, 0);
-    const minutes = Math.max(1, Math.round(chars / 500));
+    const minutes = Math.max(1, Math.round(chars / 500)); // estimated reading time at 500 chars/min
     return `
       <div class="chapter-motif">${motif}</div>
       <span class="chapter-kicker">${escapeHtml(chapter.number)}</span>
       <h2 class="chapter-heading">${escapeHtml(chapter.subtitle)}</h2>
       <span class="chapter-rule"></span>
-      <span class="chapter-paracount">약 ${minutes}분</span>`;
+      <span class="chapter-paracount">읽는 데 약 ${minutes}분</span>`;
   }
 
   function buildChapterPageObject(chapter) {
@@ -361,14 +362,22 @@
         <span class="credits-sign">반추 返追 · 2026. 11. 9.</span>
         ${withButton ? '<button type="button" class="btn-open-book btn-back-cover" data-action="back-to-cover">처음으로 돌아가기</button>' : ''}
       </div>`;
-  // Every block of the afterword as one paginatable item (paragraphs, signature, inspiration list)
-  const CREDITS_ITEMS = [
-    ...AFTERWORD_PARAS.map((t) => `<p class="novel-para credits-para">${escapeHtml(t)}</p>`),
-    `<p class="novel-para credits-para credits-signature">${escapeHtml(AFTERWORD_SIGNATURE)}</p>`,
-    '<p class="novel-para credits-para credits-ref-head">이 이야기에 영감을 준 것들</p>',
-    ...INSPIRATIONS.map((r, i) => `<p class="novel-para credits-para credits-ref"><a href="${r.url}" target="_blank" rel="noopener"><span class="ref-no">${i + 1}.</span> <span class="ref-kind">(${r.kind})</span> ${escapeHtml(r.by)}, 〈${escapeHtml(r.title)}〉 <span class="ref-year">(${r.year})</span></a></p>`)
-  ];
+  // Afterword blocks, each a paginatable item; the inspiration list is one block so it stays on a single page
+  const AFTERWORD_ITEMS = AFTERWORD_PARAS.map((t) => `<p class="novel-para credits-para">${escapeHtml(t)}</p>`);
+  const SIGNATURE_HTML = `<p class="novel-para credits-para credits-signature">${escapeHtml(AFTERWORD_SIGNATURE)}</p>`;
+  const INSPIRATIONS_HTML = '<div class="credits-refs"><p class="credits-ref-head">이 이야기에 영감을 준 것들</p>' +
+    INSPIRATIONS.map((r, i) => `<p class="credits-ref"><a href="${r.url}" target="_blank" rel="noopener"><span class="ref-no">${i + 1}.</span> <span class="ref-kind">(${r.kind})</span> ${escapeHtml(r.by)}, 〈${escapeHtml(r.title)}〉 <span class="ref-year">(${r.year})</span></a></p>`).join('') +
+    '</div>';
   const creditsItemHtml = (html) => html;
+
+  // Each inspiration line stays on one line: shrink the font until it fits (phones are narrow)
+  function fitRefLines(root) {
+    root.querySelectorAll('.credits-ref').forEach((p) => {
+      let size = 13;
+      p.style.fontSize = size + 'px';
+      while (p.scrollWidth > p.clientWidth && size > 9) { size -= 0.5; p.style.fontSize = size + 'px'; }
+    });
+  }
 
   const contentHeaderHtml = (title) => `<div class="page-header-strip"><span class="rh-left">반추 返追</span><span class="rh-right">${escapeHtml(title)}</span></div>`;
   const contentFooterHtml = (pageNo) => `<div class="page-footer-strip"><span>${pageNo}</span></div>`;
@@ -437,12 +446,14 @@
     // 작가의 말 — paginated like a chapter so every paragraph is reachable
     chapterStartPages[CREDITS_CHAPTER_ID] = pages.length;
     measureBody.classList.add('credits-page'); // measure with the credits typography, same as the rendered page
-    fillPages(measureBody, maxBodyHeight, CREDITS_ITEMS, creditsItemHtml, CREDITS_TOP_HTML, creditsBottomHtml(true)).forEach((pg) => {
-      pages.push({
-        type: 'credits', chapterId: CREDITS_CHAPTER_ID, chapterTitle: '작가의 말', startParaIndex: pg.start, endParaIndex: pg.end,
-        html: `${contentHeaderHtml('작가의 말')}<div class="page-body-content credits-page">${pg.html}</div>${contentFooterHtml('')}`
-      });
+    const pushCredits = (pg, offset) => pages.push({
+      type: 'credits', chapterId: CREDITS_CHAPTER_ID, chapterTitle: '작가의 말', startParaIndex: pg.start + offset, endParaIndex: pg.end + offset,
+      html: `${contentHeaderHtml('작가의 말')}<div class="page-body-content credits-page">${pg.html}</div>${contentFooterHtml('')}`
     });
+    // Signature is the tail: it never sits alone, the last paragraph moves with it if needed
+    fillPages(measureBody, maxBodyHeight, AFTERWORD_ITEMS, creditsItemHtml, CREDITS_TOP_HTML, SIGNATURE_HTML).forEach((pg) => pushCredits(pg, 0));
+    // Inspirations always open a fresh page, with the back-to-cover button beneath
+    fillPages(measureBody, maxBodyHeight, [INSPIRATIONS_HTML], creditsItemHtml, '', creditsBottomHtml(true)).forEach((pg) => pushCredits(pg, AFTERWORD_ITEMS.length));
     measureBody.classList.remove('credits-page');
     state.pages = pages;
     state.chapterStartPages = chapterStartPages;
@@ -483,6 +494,7 @@
     const page = state.pages[state.currentPageIndex];
     if (!page) return;
     el.currentPage.innerHTML = buildFullPageHtml(state.currentPageIndex);
+    if (page.type === 'credits') fitRefLines(el.currentPage);
 
     const openBtn = el.currentPage.querySelector('[data-action="open-first-chapter"]');
     if (openBtn) openBtn.addEventListener('click', (e) => { e.stopPropagation(); turnToPage(1, 'forward'); });
@@ -551,8 +563,9 @@
         <div class="scroll-chapter-head">${chapterHeadHtml(chap)}</div>
         ${chap.paragraphs.map((p) => `<p>${paraHtml(p)}</p>`).join('')}
       </section>`);
-    parts.push(`<section class="scroll-credits-block credits-page" id="scroll-credits" data-chapter-id="${CREDITS_CHAPTER_ID}">${CREDITS_TOP_HTML}${CREDITS_ITEMS.join('')}${creditsBottomHtml(false)}</section>`);
+    parts.push(`<section class="scroll-credits-block credits-page" id="scroll-credits" data-chapter-id="${CREDITS_CHAPTER_ID}">${CREDITS_TOP_HTML}${AFTERWORD_ITEMS.join('')}${SIGNATURE_HTML}${INSPIRATIONS_HTML}${creditsBottomHtml(false)}</section>`);
     el.scrollContent.innerHTML = parts.join('');
+    fitRefLines(el.scrollContent);
   }
 
   function scrollMax() {

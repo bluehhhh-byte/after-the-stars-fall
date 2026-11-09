@@ -440,11 +440,20 @@ html[data-theme="sepia"] .cover-title, html[data-theme="paper"] .cover-title, ht
 .credits-title { font-family: var(--font-display); font-size: 1.3rem; font-weight: 800; letter-spacing: 0.14em; padding-left: 0.14em; color: var(--text-primary); }
 .credits-page p.credits-para { text-indent: 0; margin-bottom: 0.95em; font-size: 0.94em; color: var(--text-secondary); }
 .credits-page p.credits-signature { text-align: right; color: var(--text-primary); }
-.credits-page p.credits-ref-head { margin: 1.8em 0 1em; font-family: var(--font-ui); font-size: 0.74rem; letter-spacing: 0.16em; color: var(--text-muted); }
-.credits-page p.credits-ref { margin-bottom: 0.6em; font-size: 0.88em; text-align: left; line-height: 1.7; }
-.credits-page p.credits-ref a { color: var(--text-primary); text-decoration: none; border-bottom: 1px solid var(--accent-line); padding-bottom: 1px; }
-.credits-page p.credits-ref a:hover { color: var(--accent); border-bottom-color: var(--accent); }
-.credits-page .ref-no, .credits-page .ref-kind, .credits-page .ref-year { color: var(--text-muted); font-size: 0.9em; }
+.credits-refs { padding-top: 18px; text-align: left; }
+.credits-refs .credits-ref-head { margin: 0 0 1.2em; font-family: var(--font-ui); font-size: 0.74rem; letter-spacing: 0.16em; color: var(--text-muted); text-indent: 0; }
+.credits-refs .credits-ref { margin-bottom: 0.9em; font-family: var(--font-ui); font-size: 13px; letter-spacing: -0.01em; line-height: 1.5; text-indent: 0; white-space: nowrap; text-align: left; }
+.credits-refs .credits-ref a { color: var(--text-primary); text-decoration: none; border-bottom: 1px solid var(--accent-line); padding-bottom: 1px; }
+.credits-refs .credits-ref a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.credits-refs .ref-no, .credits-refs .ref-kind, .credits-refs .ref-year { color: var(--text-muted); font-size: 0.9em; }
+.scroll-credits-block .credits-refs { max-width: 420px; margin: 0 auto; }
+
+.cover-genre {
+  position: absolute; top: 22px; left: 24px; z-index: 3;
+  font-family: var(--font-ui); font-size: 0.68rem; letter-spacing: 0.22em; padding-left: 0.22em;
+  color: var(--text-secondary); opacity: 0.85;
+  animation: coverRise 1.2s var(--ease-out) 0.4s both;
+}
 .page-body-content.credits-page { display: flex; flex-direction: column; }
 .credits-bottom { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; padding: 26px 0 6px; margin-top: auto; }
 .credits-sign { font-family: var(--font-reader); font-size: 0.78rem; letter-spacing: 0.1em; color: var(--text-muted); }
