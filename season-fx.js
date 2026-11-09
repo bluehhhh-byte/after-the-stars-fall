@@ -16,7 +16,7 @@ window.SeasonFX = (function () {
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-  const COUNT = { rain: 70, petals: 1, fireflies: 20, leaves: 24, snow: 80, none: 0 };
+  const COUNT = { rain: 70, petals: 2, fireflies: 20, leaves: 24, snow: 80, none: 0 };
 
   const PALETTE = {
     dark: {
@@ -109,7 +109,10 @@ window.SeasonFX = (function () {
           p.rot += (p.spin + p.vx * 0.01) * dt;
           p.vx *= Math.pow(0.95, dt);
           p.vyImp *= Math.pow(0.94, dt);
-          if (p.y > H + 20) { Object.assign(p, spawn(season, false)); }
+          if (p.y > H + 20) {
+            if (p.burst) { particles.splice(i--, 1); continue; } // tap-spawned petals fall once and die
+            Object.assign(p, spawn(season, false));
+          }
           if (p.x < -30) p.x = W + 20; else if (p.x > W + 30) p.x = -20;
           break;
         }
@@ -268,9 +271,10 @@ window.SeasonFX = (function () {
           const p = spawn('petals', true);
           p.x = x + rnd(-6, 6); p.y = y + rnd(-6, 6);
           p.vx = rnd(-3.2, 3.2); p.vyImp = rnd(-3.4, -0.6);
+          p.burst = true;
           particles.push(p);
         }
-        if (particles.length > 8) particles.splice(0, particles.length - 8);
+        if (particles.length > 12) particles.splice(0, particles.length - 12);
         break;
       case 'fireflies':
         attract = { x, y, until: performance.now() + 2200 };
