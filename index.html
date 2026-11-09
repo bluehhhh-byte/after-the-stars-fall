@@ -4,25 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#04060d" id="metaThemeColor" />
-  <meta name="description" content="반추 (返追) — 3D 페이지 플립 웹소설 북 리더" />
-  <title>반추 (返追) — 웹북 리더</title>
+  <meta name="description" content="반추 (返追) — 몰입형 웹소설 리더 · 오디오북" />
+  <title>반추 (返追)</title>
 
-  <!-- Fonts: Gowun Batang (body), Nanum Myeongjo (display), Noto Serif KR, Pretendard (UI) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Serif+KR:wght@300;400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
-
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- Ambient Starfield Canvas (starlight theme, outside the book) -->
   <canvas id="starfieldCanvas" aria-hidden="true"></canvas>
-
-  <!-- Paper grain overlay -->
   <div class="paper-grain" aria-hidden="true"></div>
 
-  <!-- Resume Reading Toast -->
+  <!-- Resume toast -->
   <div id="resumeToast" class="resume-toast hidden" role="status" aria-live="polite">
     <div class="resume-toast-text">
       <span class="resume-badge">이어 읽기</span>
@@ -34,114 +29,94 @@
     </div>
   </div>
 
-  <!-- Reader Shell -->
   <main id="appShell" class="app-shell">
-
-    <!-- Top Bar -->
-    <header id="topBar" class="top-bar visible">
-      <div class="top-bar-left">
-        <button id="btnOpenToc" class="icon-btn" title="목차 및 책갈피" aria-label="목차 열기">
-          <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h11M4 18h16"/></svg>
-        </button>
-        <span id="topChapterLabel" class="top-chapter-label">표지</span>
-      </div>
-
-      <div class="top-bar-right">
-        <!-- View Mode Toggle -->
-        <button id="btnToggleMode" class="pill-btn" title="읽기 모드 전환 (책넘김 / 스크롤)">
-          <span id="modeIcon" class="mode-icon"></span>
-          <span id="modeText">책넘김</span>
-        </button>
-
-        <!-- TTS -->
-        <button id="btnOpenTts" class="icon-btn" title="오디오북 낭독 (TTS)" aria-label="오디오북 낭독 열기">
-          <svg viewBox="0 0 24 24"><path d="M4 17v-5a8 8 0 0 1 16 0v5"/><path d="M4 14h2.5a1.5 1.5 0 0 1 1.5 1.5v3A1.5 1.5 0 0 1 6.5 20H4zM20 14h-2.5a1.5 1.5 0 0 0-1.5 1.5v3a1.5 1.5 0 0 0 1.5 1.5H20z"/></svg>
-        </button>
-
-        <!-- Bookmark -->
-        <button id="btnBookmarkPage" class="icon-btn" title="현재 페이지 책갈피" aria-label="책갈피 추가/해제">
-          <svg id="bookmarkSvg" viewBox="0 0 24 24"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4.2L6 21z"/></svg>
-        </button>
-
-        <!-- Settings -->
-        <button id="btnOpenSettings" class="icon-btn" title="테마 및 글자 설정" aria-label="설정 열기">
-          <span class="aa-icon">가</span>
-        </button>
-      </div>
-    </header>
-
-    <!-- 3D Book Stage -->
+    <!-- Book -->
     <div id="bookStage" class="book-stage">
       <div id="bookViewport" class="book-viewport">
         <div class="book-spine" aria-hidden="true"></div>
         <div id="pageRibbon" class="page-ribbon hidden" title="책갈피된 페이지"></div>
-
-        <!-- Static current page -->
         <article id="currentPage" class="book-page current-page" aria-live="polite"></article>
-
-        <!-- Flipping sheet -->
         <div id="flipLayer" class="flip-layer hidden" aria-hidden="true">
           <div id="flipCard" class="flip-card">
             <div id="flipFront" class="flip-face flip-front"></div>
             <div id="flipBack" class="flip-face flip-back"></div>
           </div>
-          <div id="flipShadow" class="flip-shadow"></div>
         </div>
-
-        <!-- Touch zones: left 28% prev · center 44% toggle UI · right 28% next -->
         <div id="touchZoneOverlay" class="touch-zone-overlay">
           <div id="zonePrev" class="touch-zone zone-prev" title="이전 페이지 (←)"></div>
-          <div id="zoneCenter" class="touch-zone zone-center" title="메뉴 표시/숨기기"></div>
+          <div id="zoneCenter" class="touch-zone zone-center" title="메뉴"></div>
           <div id="zoneNext" class="touch-zone zone-next" title="다음 페이지 (→)"></div>
         </div>
       </div>
-
-      <!-- Scroll mode -->
       <div id="scrollViewport" class="scroll-viewport hidden">
         <div id="scrollContent" class="scroll-content"></div>
       </div>
+      <!-- Seasonal weather layer (rain / petals / fireflies / leaves / snow per chapter) -->
+      <canvas id="seasonCanvas" class="season-canvas" aria-hidden="true"></canvas>
     </div>
 
-    <!-- TTS Mini Player -->
-    <div id="ttsPlayerBar" class="tts-player-bar hidden" role="region" aria-label="오디오북 낭독 컨트롤러">
-      <div class="tts-status-col">
-        <span id="ttsWaveDot" class="tts-wave" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span id="ttsStatusText" class="tts-status-text">낭독 대기</span>
-      </div>
-      <div class="tts-controls-col">
-        <button id="btnTtsPlayPause" class="tts-ctrl-btn primary" title="재생 / 일시정지" aria-label="재생 또는 일시정지">
-          <span id="ttsPlayIcon">▶</span>
-        </button>
-        <button id="btnTtsStop" class="tts-ctrl-btn" title="정지 (현재 페이지 처음부터)" aria-label="정지">■</button>
-        <button id="btnTtsSpeed" class="tts-speed-btn" title="낭독 속도 조절">1.0x</button>
-        <button id="btnTtsClose" class="tts-close-btn" title="오디오북 닫기" aria-label="오디오북 닫기">✕</button>
+    <!-- Audiobook capsule (top) -->
+    <div id="audioCapsule" class="audio-capsule hidden" role="region" aria-label="오디오북">
+      <span id="ttsWaveDot" class="tts-wave" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span id="ttsStatusText" class="audio-status">낭독 대기</span>
+      <div class="audio-ctrls">
+        <button id="btnTtsPlayPause" class="cap-btn primary" title="재생 / 일시정지" aria-label="재생 또는 일시정지"><span id="ttsPlayIcon">▶</span></button>
+        <button id="btnTtsStop" class="cap-btn" title="정지" aria-label="정지">■</button>
+        <button id="btnTtsSpeed" class="cap-speed" title="속도">1.0x</button>
+        <button id="btnTtsClose" class="cap-close" title="닫기" aria-label="오디오북 닫기">✕</button>
       </div>
     </div>
 
-    <!-- Bottom Bar -->
-    <footer id="bottomBar" class="bottom-bar visible">
-      <div class="bottom-nav-row">
-        <button id="btnPrevPage" class="nav-arrow-btn" title="이전 페이지" aria-label="이전 페이지">
-          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
-        </button>
-        <div class="slider-wrap">
-          <input type="range" id="pageSlider" class="page-slider" min="0" max="100" value="0" aria-label="페이지 이동 슬라이더" />
+    <!-- Orb: the single control -->
+    <button id="orb" class="orb" aria-label="탐색 덱 열기" title="탐색 (탭) · 페이지 가운데 탭과 같음">
+      <span id="orbRing" class="orb-ring" aria-hidden="true"></span>
+      <span class="orb-core" aria-hidden="true">
+        <svg class="orb-star" viewBox="0 0 24 24"><path d="M12 2.5l2 6.1 6 2.4-6 2.4-2 6.1-2-6.1-6-2.4 6-2.4z"/></svg>
+      </span>
+      <span class="orb-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+    </button>
+
+    <!-- Deck: rises on orb tap / page-center tap -->
+    <div id="deck" class="deck hidden" aria-label="탐색 덱">
+      <div class="deck-head">
+        <div class="deck-meta">
+          <span id="deckChapter" class="deck-chapter">표지</span>
+          <span id="deckPage" class="deck-page"></span>
         </div>
-        <button id="btnNextPage" class="nav-arrow-btn" title="다음 페이지" aria-label="다음 페이지">
-          <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+        <button id="btnToggleMode" class="deck-mode" title="읽기 모드 전환 (책넘김 / 스크롤)">
+          <span id="modeIcon" class="mode-icon"></span>
+          <span id="modeText">책넘김</span>
         </button>
       </div>
-      <div class="bottom-meta-row">
-        <span id="bottomChapterInfo" class="bottom-chapter-info">표지</span>
-        <span id="bottomPageCounter" class="bottom-page-counter">1 / 1</span>
+
+      <div id="constellation" class="constellation" aria-label="별자리 스크러버 — 드래그해서 이동, 별을 눌러 장으로 점프">
+        <div class="const-track"></div>
+        <div id="constDone" class="const-done"></div>
+        <div id="constNodes" class="const-nodes"></div>
+        <div id="constThumb" class="const-thumb"><span id="constTip" class="const-tip"></span></div>
       </div>
-    </footer>
+
+      <div class="deck-actions">
+        <button id="btnOpenToc" class="deck-btn">
+          <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h11M4 18h16"/></svg><span>목차</span>
+        </button>
+        <button id="btnOpenTts" class="deck-btn">
+          <svg viewBox="0 0 24 24"><path d="M4 17v-5a8 8 0 0 1 16 0v5"/><path d="M4 14h2.5a1.5 1.5 0 0 1 1.5 1.5v3A1.5 1.5 0 0 1 6.5 20H4zM20 14h-2.5a1.5 1.5 0 0 0-1.5 1.5v3a1.5 1.5 0 0 0 1.5 1.5H20z"/></svg><span>오디오북</span>
+        </button>
+        <button id="btnBookmarkPage" class="deck-btn">
+          <svg id="bookmarkSvg" viewBox="0 0 24 24"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4.2L6 21z"/></svg><span>책갈피</span>
+        </button>
+        <button id="btnOpenSettings" class="deck-btn">
+          <span class="aa-icon">가</span><span>설정</span>
+        </button>
+      </div>
+    </div>
   </main>
 
   <!-- Offscreen measurement page (same .book-page box as the live page) -->
   <div id="measureBox" class="book-page measure-box" aria-hidden="true"></div>
 
-  <!-- TOC & Bookmarks Drawer -->
+  <!-- TOC & Bookmarks drawer -->
   <div id="drawerBackdrop" class="backdrop hidden"></div>
   <aside id="tocDrawer" class="drawer hidden" aria-label="목차 및 책갈피">
     <div class="drawer-header">
@@ -153,31 +128,27 @@
         <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
-
     <div class="drawer-progress">
       <span id="drawerProgressLabel">0% 읽음</span>
       <div class="drawer-progress-bar"><i id="drawerProgressFill"></i></div>
     </div>
-
     <div class="drawer-tabs">
       <button id="tabBtnToc" class="drawer-tab active">목차</button>
       <button id="tabBtnBookmarks" class="drawer-tab">책갈피 <span id="bookmarkCountBadge" class="count-badge">0</span></button>
     </div>
-
     <div id="tabPanelToc" class="drawer-body">
       <ul id="tocList" class="toc-list"></ul>
     </div>
-
     <div id="tabPanelBookmarks" class="drawer-body hidden">
       <ul id="bookmarkList" class="bookmark-list"></ul>
       <div id="bookmarkEmptyState" class="empty-state">
         <p>저장된 책갈피가 없습니다.</p>
-        <span>읽는 중 상단의 책갈피 아이콘을 눌러 마음에 드는 페이지를 간직해 보세요.</span>
+        <span>덱의 책갈피 버튼을 눌러 마음에 드는 페이지를 간직해 보세요.</span>
       </div>
     </div>
   </aside>
 
-  <!-- Settings Sheet -->
+  <!-- Settings sheet -->
   <section id="settingsPanel" class="settings-sheet hidden" aria-label="독서 환경 설정">
     <div class="sheet-grip" aria-hidden="true"></div>
     <div class="settings-header">
@@ -190,22 +161,10 @@
     <div class="setting-group">
       <label class="setting-label">테마</label>
       <div class="theme-grid">
-        <button class="theme-chip active" data-theme-select="starlight">
-          <span class="theme-swatch swatch-starlight"></span>
-          <span class="theme-name">밤하늘</span>
-        </button>
-        <button class="theme-chip" data-theme-select="sepia">
-          <span class="theme-swatch swatch-sepia"></span>
-          <span class="theme-name">세피아</span>
-        </button>
-        <button class="theme-chip" data-theme-select="paper">
-          <span class="theme-swatch swatch-paper"></span>
-          <span class="theme-name">순백</span>
-        </button>
-        <button class="theme-chip" data-theme-select="dawn">
-          <span class="theme-swatch swatch-dawn"></span>
-          <span class="theme-name">새벽</span>
-        </button>
+        <button class="theme-chip active" data-theme-select="starlight"><span class="theme-swatch swatch-starlight"></span><span class="theme-name">밤하늘</span></button>
+        <button class="theme-chip" data-theme-select="sepia"><span class="theme-swatch swatch-sepia"></span><span class="theme-name">세피아</span></button>
+        <button class="theme-chip" data-theme-select="paper"><span class="theme-swatch swatch-paper"></span><span class="theme-name">순백</span></button>
+        <button class="theme-chip" data-theme-select="dawn"><span class="theme-swatch swatch-dawn"></span><span class="theme-name">새벽</span></button>
       </div>
     </div>
 
@@ -224,7 +183,7 @@
         <label class="setting-label">글자 크기</label>
         <div class="stepper-control">
           <button id="btnFontDec" class="stepper-btn" aria-label="글자 작게">−</button>
-          <span id="fontSizeVal" class="stepper-val">18px</span>
+          <span id="fontSizeVal" class="stepper-val">17px</span>
           <button id="btnFontInc" class="stepper-btn" aria-label="글자 크게">+</button>
         </div>
       </div>
@@ -238,16 +197,22 @@
       </div>
     </div>
 
+    <div class="setting-group setting-inline">
+      <label class="setting-label" for="seasonToggle">계절 효과 <span class="setting-sub">장마다 봄비·꽃잎·반딧불·낙엽·눈 — 화면을 탭하거나 쓸어 보세요</span></label>
+      <button id="seasonToggle" class="toggle" role="switch" aria-checked="true" aria-label="계절 효과 켜기/끄기"><span class="toggle-knob"></span></button>
+    </div>
+
     <div class="setting-group">
       <label class="setting-label" for="ttsVoiceSelect">낭독 음성 <span id="ttsVoiceHint" class="val"></span></label>
       <select id="ttsVoiceSelect" class="voice-select" aria-label="낭독 음성 선택">
-        <option value="">자동 선택 (남성 · 자연스러운 음성 우선)</option>
+        <option value="">자동 선택</option>
       </select>
-      <p class="setting-hint">★ 표시는 신경망(Natural/Online) 고품질 음성입니다. Windows에서는 Edge 브라우저의 “InJoon Online (Natural)”이 가장 자연스럽습니다.</p>
+      <p id="ttsVoiceNote" class="setting-hint">오디오북은 내장 신경망 남성 음성(InJoon)으로 재생됩니다. 이 목록은 오디오 파일을 불러올 수 없을 때 쓰는 브라우저 음성 대체 설정입니다.</p>
     </div>
   </section>
 
   <script src="novel-data.js"></script>
+  <script src="season-fx.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
