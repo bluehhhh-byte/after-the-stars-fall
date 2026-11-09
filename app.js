@@ -32,11 +32,32 @@
   // Ending credits (작가의 말) — edit freely.
   const CREDITS_CHAPTER_ID = 99;
   const AFTERWORD_PARAS = [
-    '이 이야기는 한 사람이 어떤 대답을 기다리다가, 기다림 그 자체를 내려놓기까지의 기록입니다.',
-    '별이 지고 난 뒤에도 하늘은 그 자리에 남아 있듯, 누군가를 좋아했던 마음은 돌려받지 못해도 사라지지 않습니다. 다만 그 마음이 하루를 전부 차지하지 않게 되는 날이 올 뿐입니다.',
-    '연못가의 노인과 별 수집가, 시계공과 사서, 그리고 끝내 함께 데려오기로 한 그림자에게. 오래 머물러 주어 고맙습니다.',
-    '그리고 여기까지 읽어 주신 당신에게도.'
+    '이 소설의 제목 ‘반추(返追)’는 사전에 없는 말입니다. 되돌아갈 반(返)에 좇을 추(追). 이미 지나간 자리로 돌아가 무언가를 다시 좇는다는 뜻으로 붙였습니다.',
+    '소가 삼킨 풀을 다시 꺼내 씹듯, 한 사람이 끝난 줄도 몰랐던 마음을 몇 번이고 꺼내 되씹는 이야기이기 때문입니다.',
+    '처음 쓴 문장은 연못이었습니다. 비가 그친 금요일 밤, 답장이 오지 않는 휴대전화를 들고 집으로 걸어가던 사람이 평소라면 지나쳤을 골목 끝에서 연못을 발견합니다. 그다음은 저도 알지 못한 채 따라 걸었습니다.',
+    '별을 병에 모으는 가게, 숫자 없는 시계탑, 길이 없는 숲, 아무도 지나가지 않는 교차로, 강 건너의 시계점과 도서관. 돌이켜 보면 그 장소들은 전부 한 사람이 밤마다 혼자 들르던 마음의 방들이었습니다.',
+    '이 이야기 속 두 사람은 연인이었던 적이 없습니다. 헤어졌다고 말할 수도 없고, 그래서 끝났다고 말하기도 어렵습니다. 저는 그런 관계가 오히려 더 오래 남는다고 생각했습니다.',
+    '아무것도 약속되지 않았기에 아무것도 거둬 갈 수 없는 마음. 별것 아닌 다정함에 혼자 의미를 붙이고, 늦어지는 답장에 이유를 만들어 붙이던 시간. 누구나 한 번쯤은 그런 별을 하늘에 올려 두었다가, 지는 것을 지켜본 적이 있을 것입니다.',
+    '숲에서 만나는 그림자에게 ‘괴물’이라는 이름을 준 것은, 질투와 집착과 자기연민이 한 사람 안에서 얼마나 못생긴 얼굴을 하고 있는지 저 자신이 잘 알기 때문입니다.',
+    '그러나 그것을 베어 내거나 두고 오는 결말은 쓰고 싶지 않았습니다. 그림자는 발밑에 붙어 끝까지 함께 걷습니다. 그편이 어른이 되는 일에 더 가깝다고 믿었습니다.',
+    '도서관에서 주인공은 자기 책의 마지막 빈 페이지를 채우지 않습니다. 그녀의 마음이 어디를 향해 있었는지 끝내 알지 못한 채 책을 덮습니다. ‘닫힌 엔딩’이라는 장 제목은 그래서 붙였습니다.',
+    '세상에는 상대의 입으로만 닫힐 수 있는 결말이 있고, 그것을 내 멋대로 써 넣지 않는 것이 상대에 대한 마지막 예의라고 생각했습니다.',
+    '여덟 개의 장은 봄비에서 시작해 꽃잎과 여름밤, 낙엽을 지나 눈 내리는 강에서 끝납니다. 도시 안에서는 하룻밤이 흐르지만, 주인공의 마음 안에서는 한 해가 지나갑니다. 누군가를 보내는 데 필요한 시간이 대개 그 정도라고, 저는 겪어서 알고 있었습니다.',
+    '마지막 장에서 그는 답장을 씁니다. 그리고 보내지 않습니다. 이것을 패배로 읽는 분도, 회복으로 읽는 분도 있을 것입니다. 저는 둘 다 맞다고 생각합니다.',
+    '다만 그가 더 이상 화면을 확인하지 않게 되었다는 것, 창밖의 잎 하나가 땅에 닿는 것을 끝까지 바라볼 수 있게 되었다는 것. 그 작은 변화가 이 소설이 하고 싶었던 말의 전부입니다.',
+    '별이 지고 난 뒤에도 하늘은 그 자리에 남아 있습니다. 좋아했던 마음도 그렇습니다. 돌려받지 못했다고 사라지는 것이 아니라, 어느 날부터 하루 전부를 차지하지 않게 될 뿐입니다.',
+    '지금 그 하늘 아래 서 계신 분이 있다면, 이 책이 잠시 옆에 앉아 있는 그림자 정도는 되어 주었으면 합니다.',
+    '연못가의 노인과 별 수집가, 교차로의 늙은 경관, 시계공과 사서, 그리고 끝내 함께 데려가기로 한 그림자에게. 오래 머물러 주어 고맙습니다. 그리고 여기까지 읽어 주신 당신에게도.',
+    '2026년 11월. 박준성.'
   ];
+
+  // Signs and inscriptions quoted in the text → bold
+  const SIGN_TEXTS = ['별을 모으는 곳.', '그날로 돌아갈 수 있다면.', '건너편으로 가는 사람은 돌아오는 길을 묻지 마시오.', '기억을 읽는 사람은 많지만, 마음을 읽는 사람은 없습니다.', '그날 나는 그녀가 나를 바라보기를 기다리고 있었다.'];
+  function paraHtml(text) {
+    let html = escapeHtml(text);
+    for (const t of SIGN_TEXTS) if (text.includes(t)) html = html.replace(escapeHtml(t), `<strong class="sign">${escapeHtml(t)}</strong>`);
+    return html;
+  }
 
   // Line-art motif per chapter (64×64, stroke = currentColor)
   const CHAPTER_MOTIFS = {
@@ -82,7 +103,7 @@
     1: { key: 'rain', density: 1 },        // 금요일의 비, 봄날의 기억
     2: { key: 'petals', density: 1 },      // 목련·벚꽃, 내려오는 별
     3: { key: 'fireflies', density: 1 },   // 햇빛 비치는 광장, 숲의 여름밤
-    4: { key: 'leaves', density: 0.7 },    // 숲을 나오자 가을의 색
+    4: { key: 'fireflies', density: 1 },   // 숲 속의 연못, 그림자 — 아직 여름밤
     5: { key: 'leaves', density: 1 },      // 낙엽 쌓인 교차로
     6: { key: 'leaves', density: 0.45 },   // 마지막 잎, 겨울에 가까워진 도시
     7: { key: 'snow', density: 1 },        // 도서관 앞에 내리는 눈
@@ -91,7 +112,7 @@
 
   function seasonFor(chapterId, pageType) {
     if (pageType === 'cover' || chapterId === 0) return { key: 'none', density: 0 };
-    if (chapterId === CREDITS_CHAPTER_ID) return { key: 'snow', density: 0.3 };
+    if (chapterId === CREDITS_CHAPTER_ID) return { key: 'rain', density: 0.6 }; // 작가의 말 — 1장의 비로 돌아온다
     return CHAPTER_SEASON[chapterId] || { key: 'none', density: 0 };
   }
 
@@ -285,7 +306,7 @@
             </p>
             <div class="cover-foot">
               <button type="button" class="btn-open-book" data-action="open-first-chapter">책 펼치기 →</button>
-              <span class="cover-date-meta">2026. 11. 9. 작성.</span>
+              <span class="cover-date-meta">2026. 11. 9. 작성. 박준성.</span>
             </div>
           </div>
         </div>`
@@ -316,30 +337,51 @@
     };
   }
 
-  function creditsInnerHtml(withButton) {
-    const paras = AFTERWORD_PARAS.map((t) => `<p>${escapeHtml(t)}</p>`).join('');
-    return `
+  const CREDITS_TOP_HTML = `
       <div class="credits-top">
         <span class="credits-end-mark">끝</span>
         <div class="credits-star-wrap"><span class="credits-star"></span></div>
         <h2 class="credits-title">작가의 말</h2>
-      </div>
-      <div class="credits-body">${paras}</div>
+      </div>`;
+  const creditsBottomHtml = (withButton) => `
       <div class="credits-bottom">
         <span class="credits-sign">반추 返追 · 2026. 11. 9.</span>
         ${withButton ? '<button type="button" class="btn-open-book btn-back-cover" data-action="back-to-cover">처음으로 돌아가기</button>' : ''}
       </div>`;
-  }
-
-  function buildCreditsPageObject() {
-    return {
-      type: 'credits', chapterId: CREDITS_CHAPTER_ID, chapterTitle: '작가의 말', startParaIndex: 0, endParaIndex: -1,
-      html: `<div class="credits-page">${creditsInnerHtml(true)}</div>`
-    };
-  }
+  const creditsParaHtml = (t, i) => `<p class="novel-para credits-para${i === AFTERWORD_PARAS.length - 1 ? ' credits-signature' : ''}">${escapeHtml(t)}</p>`;
 
   const contentHeaderHtml = (title) => `<div class="page-header-strip"><span class="rh-left">반추 返追</span><span class="rh-right">${escapeHtml(title)}</span></div>`;
   const contentFooterHtml = (pageNo) => `<div class="page-footer-strip"><span>${pageNo}</span></div>`;
+
+  // Fill pages with as many paragraphs as fit. headHtml opens the first page; tailHtml must fit on the last
+  // (falls to a new page with the final paragraph if it doesn't). Returns [{start, end, html}].
+  function fillPages(measureBody, maxH, paras, renderPara, headHtml, tailHtml) {
+    const out = [];
+    let pIdx = 0;
+    do {
+      const start = pIdx, parts = [];
+      measureBody.innerHTML = out.length ? '' : headHtml;
+      while (pIdx < paras.length) {
+        measureBody.insertAdjacentHTML('beforeend', renderPara(paras[pIdx], pIdx));
+        if (measureBody.scrollHeight > maxH && parts.length) { measureBody.lastElementChild.remove(); break; }
+        parts.push(measureBody.lastElementChild.outerHTML);
+        pIdx++;
+        if (measureBody.scrollHeight > maxH) break; // oversized single paragraph
+      }
+      out.push({ start, end: pIdx - 1, html: (out.length ? '' : headHtml) + parts.join('') });
+    } while (pIdx < paras.length);
+    if (tailHtml) {
+      const last = out[out.length - 1];
+      measureBody.innerHTML = last.html + tailHtml;
+      if (measureBody.scrollHeight <= maxH) last.html += tailHtml;
+      else {
+        const movedPara = last.end > last.start ? renderPara(paras[last.end], last.end) : '';
+        if (movedPara) { last.html = last.html.slice(0, last.html.lastIndexOf('<p')); last.end--; }
+        out.push({ start: last.end + 1, end: last.end + (movedPara ? 1 : 0), html: movedPara + tailHtml });
+      }
+    }
+    return out;
+  }
 
   function paginateNovel() {
     const novel = window.NOVEL_DATA;
@@ -357,48 +399,29 @@
     const measureBody = document.getElementById('measureBody');
     const maxBodyHeight = measureBody.clientHeight;
 
+    const renderNovelPara = (t) => `<p class="novel-para">${paraHtml(t)}</p>`;
     novel.chapters.forEach((chapter) => {
       chapterStartPages[chapter.id] = pages.length;
       pages.push(buildChapterPageObject(chapter));
-
-      const paras = chapter.paragraphs;
-      let pIdx = 0;
-      let first = true;
-
-      while (pIdx < paras.length) {
-        measureBody.innerHTML = '';
-        const startParaIndex = pIdx;
-        const pageParas = [];
-        if (first) {
-          const sink = document.createElement('div');
-          sink.className = 'chapter-sink';
-          measureBody.appendChild(sink);
-        }
-        while (pIdx < paras.length) {
-          const pEl = document.createElement('p');
-          pEl.className = 'novel-para';
-          pEl.textContent = paras[pIdx];
-          measureBody.appendChild(pEl);
-          if (measureBody.scrollHeight > maxBodyHeight && pageParas.length > 0) {
-            measureBody.removeChild(pEl);
-            break;
-          }
-          pageParas.push(paras[pIdx]);
-          pIdx++;
-          if (measureBody.scrollHeight > maxBodyHeight) break; // oversized single paragraph
-        }
+      fillPages(measureBody, maxBodyHeight, chapter.paragraphs, renderNovelPara, '<div class="chapter-sink"></div>', '').forEach((pg) => {
         pageNo++;
         pages.push({
           type: 'content', chapterId: chapter.id, chapterNumber: chapter.number, chapterSubtitle: chapter.subtitle,
-          chapterTitle: chapter.fullTitle, startParaIndex, endParaIndex: pIdx - 1, pageNo,
-          snippet: pageParas[0] ? pageParas[0].slice(0, 68) : chapter.fullTitle,
-          bodyInnerHtml: (first ? '<div class="chapter-sink"></div>' : '') + pageParas.map((t) => `<p class="novel-para">${escapeHtml(t)}</p>`).join('')
+          chapterTitle: chapter.fullTitle, startParaIndex: pg.start, endParaIndex: pg.end, pageNo,
+          snippet: (chapter.paragraphs[pg.start] || chapter.fullTitle).slice(0, 68),
+          bodyInnerHtml: pg.html
         });
-        first = false;
-      }
+      });
     });
 
-    pages.push(buildCreditsPageObject());
+    // 작가의 말 — paginated like a chapter so every paragraph is reachable
+    chapterStartPages[CREDITS_CHAPTER_ID] = pages.length;
+    fillPages(measureBody, maxBodyHeight, AFTERWORD_PARAS, creditsParaHtml, CREDITS_TOP_HTML, creditsBottomHtml(true)).forEach((pg) => {
+      pages.push({
+        type: 'credits', chapterId: CREDITS_CHAPTER_ID, chapterTitle: '작가의 말', startParaIndex: pg.start, endParaIndex: pg.end,
+        html: `${contentHeaderHtml('작가의 말')}<div class="page-body-content credits-page">${pg.html}</div>${contentFooterHtml('')}`
+      });
+    });
     state.pages = pages;
     state.chapterStartPages = chapterStartPages;
     state.contentTotal = Math.max(1, pageNo);
@@ -504,9 +527,9 @@
     const parts = novel.chapters.map((chap) => `
       <section class="scroll-chapter-block" id="scroll-chap-${chap.id}" data-chapter-id="${chap.id}">
         <div class="scroll-chapter-head">${chapterHeadHtml(chap)}</div>
-        ${chap.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('')}
+        ${chap.paragraphs.map((p) => `<p>${paraHtml(p)}</p>`).join('')}
       </section>`);
-    parts.push(`<section class="scroll-credits-block" id="scroll-credits" data-chapter-id="${CREDITS_CHAPTER_ID}">${creditsInnerHtml(false)}</section>`);
+    parts.push(`<section class="scroll-credits-block credits-page" id="scroll-credits" data-chapter-id="${CREDITS_CHAPTER_ID}">${CREDITS_TOP_HTML}${AFTERWORD_PARAS.map(creditsParaHtml).join('')}${creditsBottomHtml(false)}</section>`);
     el.scrollContent.innerHTML = parts.join('');
   }
 
@@ -611,7 +634,7 @@
     const nodes = [];
     const ratioFor = (chapterId) => {
       if (chapterId === 0) return 0;
-      if (chapterId === CREDITS_CHAPTER_ID) return 1;
+      if (chapterId === CREDITS_CHAPTER_ID && state.mode === 'scroll') return 1;
       if (state.mode === 'scroll') {
         const sec = document.getElementById(`scroll-chap-${chapterId}`);
         return sec ? clamp01((sec.offsetTop - 24) / scrollMax()) : 0;
@@ -642,7 +665,6 @@
       return;
     }
     if (chapterId === 0) turnToPage(0);
-    else if (chapterId === CREDITS_CHAPTER_ID) turnToPage(state.pages.length - 1);
     else turnToPage(state.chapterStartPages[chapterId] || 1);
   }
 
@@ -816,7 +838,7 @@
   function findPageForParagraph(chapterId, paraIndex) {
     for (let i = 1; i < state.pages.length; i++) {
       const p = state.pages[i];
-      if (p.type !== 'content') continue;
+      if (p.type !== 'content' && p.type !== 'credits') continue;
       if (p.chapterId === chapterId && paraIndex >= p.startParaIndex && paraIndex <= p.endParaIndex) return i;
     }
     return state.chapterStartPages[chapterId] || 1;
@@ -1215,6 +1237,8 @@
   function paragraphUnderPointer(e) {
     if (el.audioCapsule.classList.contains('hidden')) return null;
     if (typeof e.clientX !== 'number') return null;
+    const page = state.pages[state.currentPageIndex];
+    if (!page || page.type !== 'content') return null;
     const stack = document.elementsFromPoint(e.clientX, e.clientY) || [];
     return stack.find((n) => n.matches && n.matches('#currentPage p.novel-para')) || null;
   }
@@ -1331,7 +1355,6 @@
     renderTocList();
     renderBookmarkList();
     if (type === 'cover') state.currentPageIndex = 0;
-    else if (type === 'credits') state.currentPageIndex = state.pages.length - 1;
     else if (type === 'chapter') state.currentPageIndex = state.chapterStartPages[chapId] || 1;
     else state.currentPageIndex = findPageForParagraph(chapId, paraIdx);
     renderCurrentPage();
@@ -1342,6 +1365,9 @@
   function bindEvents() {
     // Page zones — while the audiobook capsule is open, tapping a paragraph reads from there
     const zoneClick = (fallback) => (e) => {
+      // The zone overlay sits above the page, so cover/credits buttons underneath get the tap forwarded
+      const btn = (document.elementsFromPoint(e.clientX, e.clientY) || []).find((n) => n.matches && n.matches('#currentPage [data-action]'));
+      if (btn) { btn.click(); return; }
       const para = paragraphUnderPointer(e);
       if (para) {
         ttsFromPageParagraph(Array.from(el.currentPage.querySelectorAll('p.novel-para')).indexOf(para));

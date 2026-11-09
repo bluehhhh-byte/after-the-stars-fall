@@ -272,6 +272,7 @@ html[data-theme="dawn"] .book-viewport::before { opacity: 0.35; }
   background: var(--accent); opacity: 0.6; transform: translateX(-50%);
 }
 .chapter-sink + p.novel-para { text-indent: 0; }
+strong.sign { font-weight: 700; color: var(--text-primary); }
 
 .page-body-content p.novel-para.tts-reading-active,
 .scroll-chapter-block p.tts-reading-active {
@@ -349,20 +350,16 @@ html[data-theme="sepia"] .cover-title, html[data-theme="paper"] .cover-title, ht
 
 .cover-spacer { flex: 1 1 auto; min-height: 120px; }
 
-/* Readability: quote sits on a frosted scrim so stars never cross the text */
+/* Readability without a box: a soft halo in the page colour keeps stars from crossing the letters */
 .cover-epigraph {
-  font-family: var(--font-reader); font-size: 1.04rem; font-weight: 400;
-  color: var(--text-primary); line-height: 2.05; letter-spacing: 0.01em;
-  word-break: keep-all; margin-bottom: 20px;
-  padding: 16px 22px; border-radius: 14px;
-  background: var(--scrim);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--border-subtle);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  font-family: var(--font-reader); font-size: 1.06rem; font-weight: 400;
+  color: var(--text-primary); line-height: 1.62; letter-spacing: 0.01em;
+  word-break: keep-all; margin-bottom: 24px; padding: 0 12px;
+  text-shadow: 0 0 14px var(--bg-page), 0 0 6px var(--bg-page), 0 1px 2px var(--bg-page);
   animation: coverRise 1.2s var(--ease-out) 0.6s both;
 }
 .cover-epigraph .epigraph-line { display: block; }
-.cover-epigraph .epigraph-gap { margin-top: 6px; }
+.cover-epigraph .epigraph-gap { margin-top: 3px; }
 
 .cover-foot {
   display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%;
@@ -435,22 +432,16 @@ html[data-theme="sepia"] .cover-title, html[data-theme="paper"] .cover-title, ht
 /* ==========================================================================
    Credits
    ========================================================================== */
-.credits-page {
-  position: relative; width: 100%; height: 100%;
-  display: flex; flex-direction: column; justify-content: space-between; align-items: center;
-  text-align: center; padding: 36px 24px 10px; overflow: hidden;
-}
-.credits-top { display: flex; flex-direction: column; align-items: center; width: 100%; }
+.credits-top { display: flex; flex-direction: column; align-items: center; width: 100%; padding: 18px 0 26px; }
 .credits-end-mark { font-family: var(--font-display); font-size: 1.1rem; letter-spacing: 0.7em; padding-left: 0.7em; color: var(--accent); opacity: 0.9; }
 .credits-star-wrap { position: relative; width: 44px; height: 44px; margin: 12px 0 8px; display: flex; align-items: center; justify-content: center; }
 .credits-star { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 16px 4px var(--accent), 0 0 44px 12px var(--accent-soft); animation: creditsStarFade 8s ease-in-out infinite; }
 @keyframes creditsStarFade { 0% { opacity: 0.15; transform: translateY(12px) scale(0.7); } 40% { opacity: 1; transform: translateY(0) scale(1); } 70% { opacity: 0.85; transform: translateY(-6px) scale(1.05); } 100% { opacity: 0.15; transform: translateY(-18px) scale(0.6); } }
 .credits-title { font-family: var(--font-display); font-size: 1.3rem; font-weight: 800; letter-spacing: 0.14em; padding-left: 0.14em; color: var(--text-primary); }
-.credits-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 6px; margin: 8px 0; font-family: var(--font-reader); font-size: 0.94rem; line-height: 1.95; color: var(--text-secondary); word-break: keep-all; text-align: center; scrollbar-width: none; }
-.credits-body::-webkit-scrollbar { display: none; }
-.credits-body p { margin-bottom: 1.05em; }
-.credits-body p:last-child { margin-bottom: 0; color: var(--text-primary); }
-.credits-bottom { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; position: relative; z-index: 25; padding-bottom: 6px; }
+.credits-page p.credits-para { text-indent: 0; margin-bottom: 0.95em; font-size: 0.94em; color: var(--text-secondary); }
+.credits-page p.credits-signature { text-align: right; color: var(--text-primary); }
+.page-body-content.credits-page { display: flex; flex-direction: column; }
+.credits-bottom { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; padding: 26px 0 6px; margin-top: auto; }
 .credits-sign { font-family: var(--font-reader); font-size: 0.78rem; letter-spacing: 0.1em; color: var(--text-muted); }
 .btn-back-cover { padding: 11px 30px; padding-left: calc(30px + 0.14em); font-size: 0.84rem; }
 
@@ -496,8 +487,8 @@ html[data-theme="sepia"] .cover-title, html[data-theme="paper"] .cover-title, ht
 .scroll-chapter-block p { text-indent: 1em; margin-bottom: 0.85em; border-radius: 6px; }
 .scroll-chapter-head + p { text-indent: 0; }
 .scroll-content.tts-open .scroll-chapter-block p { cursor: pointer; }
-.scroll-credits-block { padding: 40px 0 30px; text-align: center; }
-.scroll-credits-block .credits-body { overflow: visible; max-width: 420px; margin: 10px auto; }
+.scroll-credits-block { padding: 40px 0 30px; }
+.scroll-credits-block p.credits-para { text-indent: 0; }
 
 .measure-box { position: fixed; top: -9999px; left: -9999px; visibility: hidden; pointer-events: none; z-index: -10; }
 
