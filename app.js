@@ -21,6 +21,15 @@
     paper: '#e4e7ec'
   };
 
+  // Ending credits (작가의 말) — shown as the final page after Chapter 8. Edit freely.
+  const CREDITS_CHAPTER_ID = 99;
+  const AFTERWORD_PARAS = [
+    '이 이야기는 한 사람이 어떤 대답을 기다리다가, 기다림 그 자체를 내려놓기까지의 기록입니다.',
+    '별이 지고 난 뒤에도 하늘은 그 자리에 남아 있듯, 누군가를 좋아했던 마음은 돌려받지 못해도 사라지지 않습니다. 다만 그 마음이 하루를 전부 차지하지 않게 되는 날이 올 뿐입니다.',
+    '연못가의 노인과 별 수집가, 시계공과 사서, 그리고 끝내 함께 데려오기로 한 그림자에게. 오래 머물러 주어 고맙습니다.',
+    '그리고 여기까지 읽어 주신 당신에게도.'
+  ];
+
   // Reader State
   const state = {
     theme: 'starlight',
@@ -36,7 +45,8 @@
     bookmarks: [], // Array of { chapterId, paraIndex, chapterTitle, snippet, savedAt }
     ttsStatus: 'stopped', // 'stopped' | 'playing' | 'paused'
     ttsRate: 1.0,
-    ttsParaOffset: 0
+    ttsParaOffset: 0,
+    ttsVoiceURI: '' // '' = auto-select best Korean voice
   };
 
   // DOM Elements
@@ -99,6 +109,8 @@
     btnTtsStop: document.getElementById('btnTtsStop'),
     btnTtsSpeed: document.getElementById('btnTtsSpeed'),
     btnTtsClose: document.getElementById('btnTtsClose'),
+    ttsVoiceSelect: document.getElementById('ttsVoiceSelect'),
+    ttsVoiceHint: document.getElementById('ttsVoiceHint'),
     resumeToast: document.getElementById('resumeToast'),
     resumeToastMsg: document.getElementById('resumeToastMsg'),
     btnResumeYes: document.getElementById('btnResumeYes'),
@@ -118,6 +130,7 @@
         if (parsed.fontSize) state.fontSize = Math.min(26, Math.max(14, Number(parsed.fontSize)));
         if (parsed.lineHeight) state.lineHeight = Math.min(2.4, Math.max(1.5, Number(parsed.lineHeight)));
         if (parsed.mode === 'scroll' || parsed.mode === 'flip') state.mode = parsed.mode;
+        if (typeof parsed.ttsVoiceURI === 'string') state.ttsVoiceURI = parsed.ttsVoiceURI;
       }
       const bmRaw = localStorage.getItem(STORAGE_KEY_BOOKMARKS);
       if (bmRaw) {
@@ -135,7 +148,8 @@
         fontKey: state.fontKey,
         fontSize: state.fontSize,
         lineHeight: state.lineHeight,
-        mode: state.mode
+        mode: state.mode,
+        ttsVoiceURI: state.ttsVoiceURI
       }));
     } catch (e) {}
   }
@@ -143,7 +157,7 @@
   function saveReadingProgress() {
     if (state.currentPageIndex <= 0) return; // Don't overwrite progress with cover page
     const page = state.pages[state.currentPageIndex];
-    if (!page || page.type === 'cover') return;
+    if (!page || page.type !== 'content') return;
     try {
       localStorage.setItem(STORAGE_KEY_PROGRESS, JSON.stringify({
         chapterId: page.chapterId,
@@ -199,6 +213,9 @@
 
             <div class="cover-center-section">
               <div class="cover-art">
+                <span class="cover-sparkle s1"></span>
+                <span class="cover-sparkle s2"></span>
+                <span class="cover-sparkle s3"></span>
                 <div class="cover-star-orb"></div>
                 <div class="cover-ripple"></div>
                 <div class="cover-ripple-delay"></div>
@@ -216,6 +233,39 @@
               </button>
               <span class="cover-date-meta">2026. 11. 9. 작성.</span>
             </div>
+          </div>
+        </div>
+      `
+    };
+  }
+
+  function creditsInnerHtml(withButton) {
+    const paras = AFTERWORD_PARAS.map((t) => `<p>${escapeHtml(t)}</p>`).join('');
+    return `
+      <div class="credits-top">
+        <span class="credits-end-mark">끝</span>
+        <div class="credits-star-wrap"><span class="credits-star"></span></div>
+        <h2 class="credits-title">작가의 말</h2>
+      </div>
+      <div class="credits-body">${paras}</div>
+      <div class="credits-bottom">
+        <span class="credits-sign">반추 返追 · 2026. 11. 9.</span>
+        ${withButton ? '<button type="button" class="btn-open-book btn-back-cover" data-action="back-to-cover">처음으로 돌아가기</button>' : ''}
+      </div>
+    `;
+  }
+
+  function buildCreditsPageObject() {
+    return {
+      type: 'credits',
+      chapterId: CREDITS_CHAPTER_ID,
+      chapterTitle: '작가의 말',
+      startParaIndex: 0,
+      endParaIndex: 0,
+      html: `
+        <div class="cover-layout credits-layout">
+          <div class="cover-frame credits-frame">
+            ${creditsInnerHtml(true)}
           </div>
         </div>
       `
@@ -318,6 +368,9 @@
       }
     });
 
+    // Final page: ending credits (작가의 말)
+    pages.push(buildCreditsPageObject());
+
     state.pages = pages;
     state.chapterStartPages = chapterStartPages;
     el.pageSlider.max = Math.max(0, pages.length - 1);
@@ -326,10 +379,10 @@
   function buildFullPageHtml(pageIndex) {
     const page = state.pages[pageIndex];
     if (!page) return '';
-    if (page.type === 'cover') {
+    if (page.type !== 'content') {
       return page.html;
     }
-    const totalContentPages = state.pages.length - 1;
+    const totalContentPages = contentPageCount();
     const progressPct = Math.round((pageIndex / totalContentPages) * 100);
     return `
       <div class="page-header-strip">
@@ -344,6 +397,11 @@
         <span>${pageIndex} / ${totalContentPages}</span>
       </div>
     `;
+  }
+
+  // Pages array = [cover, ...content, credits]
+  function contentPageCount() {
+    return Math.max(1, state.pages.length - 2);
   }
 
   function escapeHtml(str) {
@@ -372,6 +430,14 @@
         turnToPage(1, 'forward');
       });
     }
+    // Wire "처음으로 돌아가기" on Credits Page
+    const backBtn = el.currentPage.querySelector('[data-action="back-to-cover"]');
+    if (backBtn) {
+      backBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        turnToPage(0, 'backward');
+      });
+    }
 
     updateBarsAndIndicators();
     saveReadingProgress();
@@ -382,12 +448,16 @@
     const page = state.pages[idx];
     if (!page) return;
 
-    const totalContentPages = Math.max(1, state.pages.length - 1);
+    const totalContentPages = contentPageCount();
     el.topChapterLabel.textContent = page.chapterTitle;
     el.bottomChapterInfo.textContent = page.type === 'cover' ? '표지 · 책 펼치기' : page.chapterTitle;
-    el.bottomPageCounter.textContent = page.type === 'cover'
-      ? `표지 (총 ${totalContentPages}쪽)`
-      : `${idx} / ${totalContentPages}쪽`;
+    if (page.type === 'cover') {
+      el.bottomPageCounter.textContent = `표지 (총 ${totalContentPages}쪽)`;
+    } else if (page.type === 'credits') {
+      el.bottomPageCounter.textContent = '끝';
+    } else {
+      el.bottomPageCounter.textContent = `${idx} / ${totalContentPages}쪽`;
+    }
     el.pageSlider.value = idx;
 
     // Check Bookmark Status
@@ -493,6 +563,12 @@
       `);
     });
 
+    htmlParts.push(`
+      <section class="scroll-credits-block" id="scroll-credits" data-chapter-id="${CREDITS_CHAPTER_ID}">
+        ${creditsInnerHtml(false)}
+      </section>
+    `);
+
     el.scrollContent.innerHTML = htmlParts.join('');
   }
 
@@ -553,6 +629,17 @@
       `);
     });
 
+    // Credits entry
+    items.push(`
+      <li class="toc-item" data-chapter-id="${CREDITS_CHAPTER_ID}" data-target-page="${state.pages.length - 1}">
+        <div class="toc-item-left">
+          <span class="toc-chap-num">EPILOGUE</span>
+          <span class="toc-chap-title">작가의 말</span>
+        </div>
+        <span class="toc-page-num">끝</span>
+      </li>
+    `);
+
     el.tocList.innerHTML = items.join('');
     el.tocList.querySelectorAll('.toc-item').forEach((li) => {
       li.addEventListener('click', () => {
@@ -563,7 +650,8 @@
           if (chapId === 0) {
             el.scrollViewport.scrollTo({ top: 0, behavior: 'smooth' });
           } else {
-            const node = document.getElementById(`scroll-chap-${chapId}`);
+            const nodeId = chapId === CREDITS_CHAPTER_ID ? 'scroll-credits' : `scroll-chap-${chapId}`;
+            const node = document.getElementById(nodeId);
             if (node) node.scrollIntoView({ behavior: 'smooth' });
           }
         } else {
@@ -575,7 +663,7 @@
 
   function isPageBookmarked(pageIndex) {
     const page = state.pages[pageIndex];
-    if (!page || page.type === 'cover') return false;
+    if (!page || page.type !== 'content') return false;
     return state.bookmarks.some(
       (b) => b.chapterId === page.chapterId &&
              b.paraIndex >= page.startParaIndex &&
@@ -586,7 +674,7 @@
   function toggleCurrentPageBookmark() {
     const idx = state.currentPageIndex;
     const page = state.pages[idx];
-    if (!page || page.type === 'cover') return;
+    if (!page || page.type !== 'content') return;
 
     const existingIndex = state.bookmarks.findIndex(
       (b) => b.chapterId === page.chapterId &&
@@ -617,6 +705,7 @@
   function findPageForParagraph(chapterId, paraIndex) {
     for (let i = 1; i < state.pages.length; i++) {
       const p = state.pages[i];
+      if (p.type !== 'content') continue;
       if (p.chapterId === chapterId && paraIndex >= p.startParaIndex && paraIndex <= p.endParaIndex) {
         return i;
       }
@@ -660,35 +749,72 @@
   const synth = window.speechSynthesis || null;
   let cachedMaleVoice = null;
   let currentUtterance = null;
-  let ttsCancelFlag = false;
 
-  function selectBestKoreanMaleVoice() {
-    if (!synth) return null;
-    const voices = synth.getVoices() || [];
-    const koVoices = voices.filter((v) => v.lang && (v.lang.toLowerCase().includes('ko') || v.name.includes('한국어') || v.name.includes('Korean')));
-    if (koVoices.length === 0) return null;
+  const MALE_KEYWORDS = ['injoon', '인준', 'hyunsu', '현수', 'bongjin', '봉진', 'gookmin', '국민', 'male', '남성', '민수', '태민'];
+  const NEURAL_RE = /natural|online|neural|premium|enhanced|wavenet|studio/i;
 
-    // Priority 1: Natural / Neural Male Korean voices (e.g., Microsoft InJoon Online Natural, Google/Apple Male)
-    const maleKeywords = ['injoon', '인준', 'hyunsu', '현수', 'bongjin', '봉진', 'gookmin', '국민', 'male', '남성', '민수', '태민', 'yuna-male'];
-    for (const kw of maleKeywords) {
-      const found = koVoices.find((v) => v.name.toLowerCase().includes(kw));
-      if (found) return found;
-    }
-
-    // Priority 2: High-quality Online/Natural Korean voice (we tune pitch to warm male baritone if needed)
-    const naturalVoice = koVoices.find((v) => v.name.toLowerCase().includes('natural') || v.name.toLowerCase().includes('online') || v.name.includes('Google'));
-    return naturalVoice || koVoices[0];
+  function getKoreanVoices() {
+    if (!synth) return [];
+    return (synth.getVoices() || []).filter((v) =>
+      /^ko/i.test(v.lang || '') || /한국어|korean/i.test(v.name || '')
+    );
   }
 
   function isLikelyMaleVoice(voice) {
     if (!voice) return false;
     const n = voice.name.toLowerCase();
-    return ['injoon', '인준', 'hyunsu', '현수', 'bongjin', '봉진', 'gookmin', '국민', 'male', '남성'].some((kw) => n.includes(kw));
+    return MALE_KEYWORDS.some((kw) => n.includes(kw));
+  }
+
+  // Higher score = better storytelling voice. Male first, then neural/natural quality, then online (non-local) engines.
+  function scoreVoice(v) {
+    const n = v.name.toLowerCase();
+    let s = 0;
+    if (isLikelyMaleVoice(v)) s += 100;
+    if (NEURAL_RE.test(n)) s += 50;
+    if (n.includes('google')) s += 20;
+    if (v.localService === false) s += 10;
+    return s;
+  }
+
+  function selectBestKoreanMaleVoice() {
+    const ko = getKoreanVoices();
+    if (ko.length === 0) return null;
+    return ko.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a))[0];
+  }
+
+  // User-picked voice (settings) wins; otherwise auto-select.
+  function resolveTtsVoice() {
+    if (state.ttsVoiceURI) {
+      const picked = getKoreanVoices().find((v) => v.voiceURI === state.ttsVoiceURI);
+      if (picked) return { voice: picked, userPicked: true };
+    }
+    cachedMaleVoice = cachedMaleVoice || selectBestKoreanMaleVoice();
+    return { voice: cachedMaleVoice, userPicked: false };
+  }
+
+  function populateVoiceSelect() {
+    if (!el.ttsVoiceSelect) return;
+    const ko = getKoreanVoices();
+    const opts = ['<option value="">자동 선택 (남성 · 자연스러운 음성 우선)</option>'];
+    ko.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a)).forEach((v) => {
+      const label = v.name
+        .replace(/^(Microsoft|Google|Apple)\s+/i, '')
+        .replace(/\s*-\s*Korean.*$/i, '')
+        + (NEURAL_RE.test(v.name) ? ' ★' : '');
+      const sel = v.voiceURI === state.ttsVoiceURI ? ' selected' : '';
+      opts.push(`<option value="${escapeHtml(v.voiceURI)}"${sel}>${escapeHtml(label)}</option>`);
+    });
+    el.ttsVoiceSelect.innerHTML = opts.join('');
+    if (el.ttsVoiceHint) {
+      el.ttsVoiceHint.textContent = ko.length ? `${ko.length}개 감지` : '한국어 음성 없음';
+    }
   }
 
   if (synth && typeof synth.onvoiceschanged !== 'undefined') {
     synth.onvoiceschanged = () => {
       cachedMaleVoice = selectBestKoreanMaleVoice();
+      populateVoiceSelect();
     };
   }
 
@@ -722,16 +848,35 @@
     } else if (isPaused) {
       el.ttsStatusText.textContent = `일시정지됨 (${state.currentPageIndex}쪽)`;
     } else {
-      el.ttsStatusText.textContent = `낭독 대기 (${state.currentPageIndex || 1}쪽)`;
+      el.ttsStatusText.textContent = '문단을 탭하면 그곳부터 읽어요';
     }
   }
 
   function cancelSpeechInternal() {
-    ttsCancelFlag = true;
+    currentUtterance = null; // Stale utterance callbacks compare against this and bail out
     if (synth) {
       synth.cancel();
+      // Chrome: a new speak() after cancel() stays silent while the engine is still flagged paused
+      if (synth.paused) synth.resume();
     }
-    currentUtterance = null;
+  }
+
+  // Start reading from a specific paragraph index on the current page (tap-to-read)
+  function speakFromParagraph(offset) {
+    if (!synth || state.isFlipping) return;
+    cancelSpeechInternal();
+    el.ttsPlayerBar.classList.remove('hidden');
+    state.ttsParaOffset = Math.max(0, offset);
+    state.ttsStatus = 'playing';
+    speakCurrentParagraph();
+  }
+
+  // Returns the novel paragraph under a pointer event, only while the TTS player is open
+  function paragraphUnderPointer(e) {
+    if (el.ttsPlayerBar.classList.contains('hidden')) return null;
+    if (typeof e.clientX !== 'number') return null;
+    const stack = document.elementsFromPoint(e.clientX, e.clientY) || [];
+    return stack.find((n) => n.matches && n.matches('#currentPage p.novel-para')) || null;
   }
 
   function speakCurrentParagraph() {
@@ -755,6 +900,13 @@
 
     const page = state.pages[state.currentPageIndex];
     if (!page || page.type === 'cover') return;
+
+    // Credits page has no novel paragraphs → reading finished
+    if (page.type === 'credits') {
+      stopTts();
+      el.ttsStatusText.textContent = '완독 완료';
+      return;
+    }
 
     const paraNodes = el.currentPage.querySelectorAll('p.novel-para');
     const totalParasOnPage = paraNodes.length;
@@ -786,7 +938,6 @@
     }
 
     cancelSpeechInternal();
-    ttsCancelFlag = false;
 
     // Prefix chapter title naturally if it's the very first paragraph of a chapter
     let spokenText = textToRead;
@@ -796,30 +947,33 @@
 
     const utter = new SpeechSynthesisUtterance(spokenText);
     utter.lang = 'ko-KR';
-    cachedMaleVoice = cachedMaleVoice || selectBestKoreanMaleVoice();
-    if (cachedMaleVoice) {
-      utter.voice = cachedMaleVoice;
+    const { voice, userPicked } = resolveTtsVoice();
+    if (voice) {
+      utter.voice = voice;
     }
 
     // Tune for a soft, warm, calm male storytelling voice:
-    // If a dedicated male voice (like Microsoft InJoon) is active, use natural warm pitch (0.94).
-    // If only a default/female voice is installed on the device, lower pitch (0.78) to create a gentle male tone.
-    const hasNativeMale = isLikelyMaleVoice(cachedMaleVoice);
-    utter.pitch = hasNativeMale ? 0.94 : 0.78;
+    // - Native male voice (e.g. Microsoft InJoon): natural warm pitch 0.94.
+    // - User explicitly picked a non-male voice: leave it natural (1.0).
+    // - Auto-selected non-male fallback: lower pitch (0.78) for a gentle male tone.
+    utter.pitch = isLikelyMaleVoice(voice) ? 0.94 : (userPicked ? 1.0 : 0.78);
     utter.rate = state.ttsRate * 0.95; // Slightly relaxed literary pacing
 
     highlightCurrentParagraph(state.ttsParaOffset);
     state.ttsStatus = 'playing';
     updateTtsUi();
 
+    // Identity guard: synth.cancel() fires end/error asynchronously for the old utterance,
+    // which would otherwise double-advance ttsParaOffset after a restart.
     utter.onend = () => {
-      if (ttsCancelFlag || state.ttsStatus !== 'playing') return;
+      if (currentUtterance !== utter || state.ttsStatus !== 'playing') return;
       state.ttsParaOffset++;
       speakCurrentParagraph();
     };
 
     utter.onerror = (ev) => {
-      if (ttsCancelFlag || ev.error === 'interrupted' || ev.error === 'canceled') return;
+      if (currentUtterance !== utter) return;
+      if (ev.error === 'interrupted' || ev.error === 'canceled') return;
       if (state.ttsStatus === 'playing') {
         state.ttsParaOffset++;
         speakCurrentParagraph();
@@ -977,16 +1131,21 @@
   }
 
   function bindEvents() {
-    // Touch/Click Zones
-    el.zonePrev.addEventListener('click', () => {
-      prevPage();
-    });
-    el.zoneNext.addEventListener('click', () => {
-      nextPage();
-    });
-    el.zoneCenter.addEventListener('click', () => {
-      toggleUiBars();
-    });
+    // Touch/Click Zones — while the TTS player is open, tapping a paragraph reads from there instead
+    function zoneClick(fallback) {
+      return (e) => {
+        const para = paragraphUnderPointer(e);
+        if (para) {
+          const paraNodes = Array.from(el.currentPage.querySelectorAll('p.novel-para'));
+          speakFromParagraph(paraNodes.indexOf(para));
+          return;
+        }
+        fallback();
+      };
+    }
+    el.zonePrev.addEventListener('click', zoneClick(prevPage));
+    el.zoneNext.addEventListener('click', zoneClick(nextPage));
+    el.zoneCenter.addEventListener('click', zoneClick(toggleUiBars));
 
     // Touch Swipe Gesture Support on Book Viewport
     let touchStartX = 0;
@@ -1016,7 +1175,9 @@
       const val = Number(e.target.value);
       const page = state.pages[val];
       if (page) {
-        el.bottomPageCounter.textContent = val === 0 ? '표지' : `${val} / ${state.pages.length - 1}쪽`;
+        el.bottomPageCounter.textContent = page.type === 'cover' ? '표지'
+          : page.type === 'credits' ? '끝'
+          : `${val} / ${contentPageCount()}쪽`;
         el.bottomChapterInfo.textContent = page.chapterTitle;
       }
     });
@@ -1154,6 +1315,17 @@
       el.ttsPlayerBar.classList.add('hidden');
     });
 
+    // TTS Voice Picker (Settings)
+    if (el.ttsVoiceSelect) {
+      el.ttsVoiceSelect.addEventListener('change', (e) => {
+        state.ttsVoiceURI = e.target.value || '';
+        saveSettings();
+        if (state.ttsStatus === 'playing') {
+          speakCurrentParagraph(); // Restart current paragraph with the new voice
+        }
+      });
+    }
+
     // Clean up speech if tab/window is closed
     window.addEventListener('beforeunload', () => {
       cancelSpeechInternal();
@@ -1186,6 +1358,7 @@
       updateModeView();
     }
     bindEvents();
+    populateVoiceSelect();
     checkSavedProgressToast();
 
     // Ensure accurate pagination once web fonts finish loading
