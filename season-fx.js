@@ -16,7 +16,7 @@ window.SeasonFX = (function () {
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-  const COUNT = { rain: 70, petals: 9, fireflies: 20, leaves: 24, snow: 80, none: 0 };
+  const COUNT = { rain: 70, petals: 2, fireflies: 20, leaves: 24, snow: 80, none: 0 };
 
   const PALETTE = {
     dark: {
@@ -264,13 +264,13 @@ window.SeasonFX = (function () {
         setTimeout(() => ripples.push({ x: x + rnd(-6, 6), y: y + rnd(-3, 3), r: 2, life: 0.8 }), 180);
         break;
       case 'petals':
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 2; i++) {
           const p = spawn('petals', true);
           p.x = x + rnd(-6, 6); p.y = y + rnd(-6, 6);
           p.vx = rnd(-3.2, 3.2); p.vyImp = rnd(-3.4, -0.6);
           particles.push(p);
         }
-        if (particles.length > 60) particles.splice(0, particles.length - 60);
+        if (particles.length > 16) particles.splice(0, particles.length - 16);
         break;
       case 'fireflies':
         attract = { x, y, until: performance.now() + 2200 };
