@@ -27,7 +27,6 @@
   const THEME_META_COLOR = { starlight: '#04060d', sepia: '#2e2520', paper: '#e6e8ee', dawn: '#2b2a3b' };
 
   const DECK_AUTOHIDE_MS = 5200;
-  const PARA_GAP_MS = 320; // breath between paragraphs in the audiobook
 
   // Ending credits (작가의 말) — edit freely.
   const CREDITS_CHAPTER_ID = 99;
@@ -915,7 +914,7 @@
   // =========================================================================
   // 7. Audiobook (pre-rendered neural voice) with Web Speech fallback
   // =========================================================================
-  const audiobook = { available: false, cues: null, audio: new Audio(), chapterId: 0, paraIndex: -1, gapTimer: null, ticking: false };
+  const audiobook = { available: false, cues: null, audio: new Audio(), chapterId: 0, paraIndex: -1, ticking: false };
   audiobook.audio.preload = 'auto';
 
   async function initAudiobook() {
@@ -943,7 +942,7 @@
     saveSettings();
     applyVisualSettings();
     const resume = audiobook.available && state.ttsStatus === 'playing' ? { c: audiobook.chapterId, p: audiobook.paraIndex } : null;
-    if (resume) { clearTimeout(audiobook.gapTimer); audiobook.audio.pause(); }
+    if (resume) audiobook.audio.pause();
     audiobook.chapterId = 0;
     await initAudiobook();
     if (resume && audiobook.available) abPlay(resume.c, resume.p);
@@ -961,7 +960,6 @@
     const cue = abCue(chapterId);
     if (!cue) { ttsFinish(); return; }
     const a = audiobook.audio;
-    clearTimeout(audiobook.gapTimer);
     const t = paraIndex < 0 ? 0 : (cue.starts[Math.min(paraIndex, cue.starts.length - 1)] || 0);
     const src = `audio/${state.ttsVoice}/ch${chapterId}.mp3`;
     const needLoad = audiobook.chapterId !== chapterId || !a.src || !a.src.endsWith(src);
@@ -977,7 +975,7 @@
       // Some servers/browsers drop a seek issued at loadedmetadata; verify once playback actually starts
       if (t > 0.5) {
         a.addEventListener('playing', () => {
-          if (audiobook.chapterId === chapterId && audiobook.paraIndex === paraIndex && Math.abs(a.currentTime - t) > 1.5) seek();
+          if (audiobook.chapterId === chapterId && audiobook.paraIndex === paraIndex && Math.abs(a.currentTime - t) > 0.5) seek();
         }, { once: true });
       }
     };
@@ -1002,9 +1000,9 @@
       let i = audiobook.paraIndex;
       while (i + 1 < cue.starts.length && t >= cue.starts[i + 1] - 0.015) i++;
       if (i !== audiobook.paraIndex) {
+        // No pause/resume here: the rendered audio already holds ~1s of silence at each boundary,
+        // and a pause/play cycle clips the first words after it (Bluetooth sinks drop up to a second).
         audiobook.paraIndex = i;
-        a.pause(); // short breath between paragraphs
-        audiobook.gapTimer = setTimeout(() => { if (state.ttsStatus === 'playing') a.play().catch(() => {}); }, PARA_GAP_MS);
         highlightAudioParagraph(audiobook.chapterId, i);
         updateTtsUi();
       }
@@ -1189,7 +1187,7 @@
 
   function ttsPause() {
     state.ttsStatus = 'paused';
-    if (audiobook.available) { clearTimeout(audiobook.gapTimer); audiobook.audio.pause(); }
+    if (audiobook.available) audiobook.audio.pause();
     else if (synth && synth.speaking) synth.pause();
     updateTtsUi();
   }
@@ -1197,7 +1195,9 @@
   function ttsResume() {
     state.ttsStatus = 'playing';
     if (audiobook.available) {
-      audiobook.audio.play().catch(() => {});
+      const a = audiobook.audio;
+      try { a.currentTime = Math.max(0, a.currentTime - 0.8); } catch (e) {} // back up a little so nothing is lost on resume
+      a.play().catch(() => {});
       if (!audiobook.ticking) { audiobook.ticking = true; requestAnimationFrame(abTick); }
     } else if (synth && synth.paused) {
       synth.resume();
@@ -1215,7 +1215,7 @@
 
   // Silence without changing status (used while a manual page turn is in flight)
   function ttsHold() {
-    if (audiobook.available) { clearTimeout(audiobook.gapTimer); audiobook.audio.pause(); }
+    if (audiobook.available) audiobook.audio.pause();
     else cancelSpeechInternal();
   }
 
@@ -1235,7 +1235,7 @@
 
   function ttsStop() {
     state.ttsStatus = 'stopped';
-    if (audiobook.available) { clearTimeout(audiobook.gapTimer); audiobook.audio.pause(); audiobook.paraIndex = -1; }
+    if (audiobook.available) { audiobook.audio.pause(); audiobook.paraIndex = -1; }
     cancelSpeechInternal();
     state.ttsParaOffset = 0;
     clearTtsHighlight();
