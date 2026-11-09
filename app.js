@@ -7,7 +7,7 @@
  *
  * Navigation: no persistent bars. One orb (progress ring) toggles the deck:
  *   constellation scrubber (drag = scrub, star = jump to chapter) + 4 actions.
- * Audiobook: pre-rendered neural male voice (audio/ch{N}.mp3 + audio/cues.json),
+ * Audiobook: pre-rendered neural voices, one set per gender (audio/{m|f}/ch{N}.mp3 + cues.json),
  *   paragraph-synced highlighting and page following. Web Speech is the fallback.
  */
 (function () {
@@ -47,8 +47,22 @@
     '다만 그가 더 이상 화면을 확인하지 않게 되었다는 것, 창밖의 잎 하나가 땅에 닿는 것을 끝까지 바라볼 수 있게 되었다는 것. 그 작은 변화가 이 소설이 하고 싶었던 말의 전부입니다.',
     '별이 지고 난 뒤에도 하늘은 그 자리에 남아 있습니다. 좋아했던 마음도 그렇습니다. 돌려받지 못했다고 사라지는 것이 아니라, 어느 날부터 하루 전부를 차지하지 않게 될 뿐입니다.',
     '지금 그 하늘 아래 서 계신 분이 있다면, 이 책이 잠시 옆에 앉아 있는 그림자 정도는 되어 주었으면 합니다.',
-    '연못가의 노인과 별 수집가, 교차로의 늙은 경관, 시계공과 사서, 그리고 끝내 함께 데려가기로 한 그림자에게. 오래 머물러 주어 고맙습니다. 그리고 여기까지 읽어 주신 당신에게도.',
-    '2026년 11월. 박준성.'
+    '연못가의 노인과 별 수집가, 교차로의 늙은 경관, 시계공과 사서, 그리고 끝내 함께 데려가기로 한 그림자에게. 오래 머물러 주어 고맙습니다. 그리고 여기까지 읽어 주신 당신에게도.'
+  ];
+  const AFTERWORD_SIGNATURE = '2026년 11월. 박준성.';
+
+  // What inspired the story — listed after the afterword. 소설은 해설 영상, 영화는 예고편, 음악은 음원.
+  const INSPIRATIONS = [
+    { kind: '소설', by: '무라카미 하루키', title: '도시와 그 불확실한 벽', year: 2023, url: 'https://www.youtube.com/watch?v=y1kxdlxZTLo' },
+    { kind: '영화', by: '이창동', title: '가능한 사랑', year: 2026, url: 'https://www.youtube.com/watch?v=XkBZf4ogtXU' },
+    { kind: '음악', by: '기리보이', title: '농담처럼', year: 2020, url: 'https://www.youtube.com/watch?v=90lREWfo8Yk' },
+    { kind: '음악', by: '기리보이', title: '별이지고있다', year: 2019, url: 'https://www.youtube.com/watch?v=E22n0_btcqw' },
+    { kind: '음악', by: '토일, 릴러말즈, 로꼬', title: '시한부', year: 2021, url: 'https://www.youtube.com/watch?v=CUepagh0jfE' },
+    { kind: '음악', by: '기리보이, 유라', title: '괴물', year: 2025, url: 'https://www.youtube.com/watch?v=CLmhTi_4uFI' },
+    { kind: '음악', by: '기리보이, 헤이즈', title: '교통정리', year: 2019, url: 'https://www.youtube.com/watch?v=1x6pcgRXmPs' },
+    { kind: '음악', by: '릴보이, 기리보이', title: '시간이우리를바꿀수있다면', year: 2022, url: 'https://www.youtube.com/watch?v=AxkkFqUmKe4' },
+    { kind: '음악', by: '숀', title: '닫힌엔딩', year: 2021, url: 'https://www.youtube.com/watch?v=ElRzpodI8Ms' },
+    { kind: '음악', by: '백예린, 모니카, 립제이', title: '너머', year: 2022, url: 'https://www.youtube.com/watch?v=pqfI3BmlOwE' }
   ];
 
   // Signs and inscriptions quoted in the text → bold
@@ -94,7 +108,7 @@
     ttsStatus: 'stopped', // 'stopped' | 'playing' | 'paused'
     ttsRate: 1.0,
     ttsParaOffset: 0,
-    ttsVoiceURI: '',
+    ttsVoice: 'm', // 'm' | 'f' — which pre-rendered voice set (audio/m, audio/f)
     seasonFx: true
   };
 
@@ -180,8 +194,6 @@
     btnTtsStop: $('btnTtsStop'),
     btnTtsSpeed: $('btnTtsSpeed'),
     btnTtsClose: $('btnTtsClose'),
-    ttsVoiceSelect: $('ttsVoiceSelect'),
-    ttsVoiceHint: $('ttsVoiceHint'),
     ttsVoiceNote: $('ttsVoiceNote'),
     seasonCanvas: $('seasonCanvas'),
     seasonToggle: $('seasonToggle'),
@@ -210,7 +222,7 @@
         if (p.fontSize) state.fontSize = Math.min(26, Math.max(14, Number(p.fontSize)));
         if (p.lineHeight) state.lineHeight = Math.min(2.4, Math.max(1.5, Number(p.lineHeight)));
         if (p.mode === 'scroll' || p.mode === 'flip') state.mode = p.mode;
-        if (typeof p.ttsVoiceURI === 'string') state.ttsVoiceURI = p.ttsVoiceURI;
+        if (p.ttsVoice === 'm' || p.ttsVoice === 'f') state.ttsVoice = p.ttsVoice;
         if (typeof p.seasonFx === 'boolean') state.seasonFx = p.seasonFx;
       }
       const bmRaw = localStorage.getItem(STORAGE_KEY_BOOKMARKS);
@@ -224,7 +236,7 @@
     try {
       localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify({
         theme: state.theme, fontKey: state.fontKey, fontSize: state.fontSize,
-        lineHeight: state.lineHeight, mode: state.mode, ttsVoiceURI: state.ttsVoiceURI, seasonFx: state.seasonFx
+        lineHeight: state.lineHeight, mode: state.mode, ttsVoice: state.ttsVoice, seasonFx: state.seasonFx
       }));
     } catch (e) {}
   }
@@ -250,6 +262,7 @@
     el.lineHeightVal.textContent = state.lineHeight.toFixed(2);
     document.querySelectorAll('[data-theme-select]').forEach((b) => b.classList.toggle('active', b.getAttribute('data-theme-select') === state.theme));
     document.querySelectorAll('[data-font-select]').forEach((b) => b.classList.toggle('active', b.getAttribute('data-font-select') === state.fontKey));
+    document.querySelectorAll('[data-voice-select]').forEach((b) => b.classList.toggle('active', b.getAttribute('data-voice-select') === state.ttsVoice));
     if (el.seasonToggle) el.seasonToggle.setAttribute('aria-checked', String(state.seasonFx));
     if (window.SeasonFX) { window.SeasonFX.setTheme(state.theme === 'starlight'); window.SeasonFX.setEnabled(state.seasonFx); }
   }
@@ -348,7 +361,14 @@
         <span class="credits-sign">반추 返追 · 2026. 11. 9.</span>
         ${withButton ? '<button type="button" class="btn-open-book btn-back-cover" data-action="back-to-cover">처음으로 돌아가기</button>' : ''}
       </div>`;
-  const creditsParaHtml = (t, i) => `<p class="novel-para credits-para${i === AFTERWORD_PARAS.length - 1 ? ' credits-signature' : ''}">${escapeHtml(t)}</p>`;
+  // Every block of the afterword as one paginatable item (paragraphs, signature, inspiration list)
+  const CREDITS_ITEMS = [
+    ...AFTERWORD_PARAS.map((t) => `<p class="novel-para credits-para">${escapeHtml(t)}</p>`),
+    `<p class="novel-para credits-para credits-signature">${escapeHtml(AFTERWORD_SIGNATURE)}</p>`,
+    '<p class="novel-para credits-para credits-ref-head">이 이야기에 영감을 준 것들</p>',
+    ...INSPIRATIONS.map((r, i) => `<p class="novel-para credits-para credits-ref"><a href="${r.url}" target="_blank" rel="noopener"><span class="ref-no">${i + 1}.</span> <span class="ref-kind">(${r.kind})</span> ${escapeHtml(r.by)}, 〈${escapeHtml(r.title)}〉 <span class="ref-year">(${r.year})</span></a></p>`)
+  ];
+  const creditsItemHtml = (html) => html;
 
   const contentHeaderHtml = (title) => `<div class="page-header-strip"><span class="rh-left">반추 返追</span><span class="rh-right">${escapeHtml(title)}</span></div>`;
   const contentFooterHtml = (pageNo) => `<div class="page-footer-strip"><span>${pageNo}</span></div>`;
@@ -416,12 +436,14 @@
 
     // 작가의 말 — paginated like a chapter so every paragraph is reachable
     chapterStartPages[CREDITS_CHAPTER_ID] = pages.length;
-    fillPages(measureBody, maxBodyHeight, AFTERWORD_PARAS, creditsParaHtml, CREDITS_TOP_HTML, creditsBottomHtml(true)).forEach((pg) => {
+    measureBody.classList.add('credits-page'); // measure with the credits typography, same as the rendered page
+    fillPages(measureBody, maxBodyHeight, CREDITS_ITEMS, creditsItemHtml, CREDITS_TOP_HTML, creditsBottomHtml(true)).forEach((pg) => {
       pages.push({
         type: 'credits', chapterId: CREDITS_CHAPTER_ID, chapterTitle: '작가의 말', startParaIndex: pg.start, endParaIndex: pg.end,
         html: `${contentHeaderHtml('작가의 말')}<div class="page-body-content credits-page">${pg.html}</div>${contentFooterHtml('')}`
       });
     });
+    measureBody.classList.remove('credits-page');
     state.pages = pages;
     state.chapterStartPages = chapterStartPages;
     state.contentTotal = Math.max(1, pageNo);
@@ -529,7 +551,7 @@
         <div class="scroll-chapter-head">${chapterHeadHtml(chap)}</div>
         ${chap.paragraphs.map((p) => `<p>${paraHtml(p)}</p>`).join('')}
       </section>`);
-    parts.push(`<section class="scroll-credits-block credits-page" id="scroll-credits" data-chapter-id="${CREDITS_CHAPTER_ID}">${CREDITS_TOP_HTML}${AFTERWORD_PARAS.map(creditsParaHtml).join('')}${creditsBottomHtml(false)}</section>`);
+    parts.push(`<section class="scroll-credits-block credits-page" id="scroll-credits" data-chapter-id="${CREDITS_CHAPTER_ID}">${CREDITS_TOP_HTML}${CREDITS_ITEMS.join('')}${creditsBottomHtml(false)}</section>`);
     el.scrollContent.innerHTML = parts.join('');
   }
 
@@ -877,20 +899,36 @@
   audiobook.audio.preload = 'auto';
 
   async function initAudiobook() {
+    audiobook.available = false;
+    audiobook.cues = null;
     try {
-      const res = await fetch('audio/cues.json', { cache: 'no-cache' });
+      const res = await fetch(`audio/${state.ttsVoice}/cues.json`, { cache: 'no-cache' });
       if (!res.ok) return;
       const cues = await res.json();
       if (!cues || !cues.chapters) return;
       audiobook.cues = cues;
       audiobook.available = true;
-      if (el.ttsVoiceNote) el.ttsVoiceNote.textContent = '오디오북은 내장 신경망 남성 음성(InJoon)으로 재생됩니다. 아래 목록은 오디오 파일을 불러올 수 없을 때 쓰는 브라우저 음성 대체 설정입니다.';
     } catch (e) {
       /* offline or audio not built: Web Speech fallback stays active */
     }
     if (!audiobook.available && el.ttsVoiceNote) {
-      el.ttsVoiceNote.textContent = '내장 오디오북을 불러오지 못해 브라우저 음성으로 낭독합니다. ★ 표시가 신경망 고품질 음성입니다 (Windows: Edge의 InJoon Online).';
+      el.ttsVoiceNote.textContent = '내장 오디오북을 불러오지 못해 브라우저 음성으로 낭독합니다. 선택한 성별에 가장 가까운 한국어 음성을 씁니다.';
     }
+  }
+
+  // Switch voice set; a running audiobook resumes at the same paragraph in the new voice
+  async function setTtsVoice(key) {
+    if (key === state.ttsVoice) return;
+    state.ttsVoice = key;
+    saveSettings();
+    applyVisualSettings();
+    const resume = audiobook.available && state.ttsStatus === 'playing' ? { c: audiobook.chapterId, p: audiobook.paraIndex } : null;
+    if (resume) { clearTimeout(audiobook.gapTimer); audiobook.audio.pause(); }
+    audiobook.chapterId = 0;
+    await initAudiobook();
+    if (resume && audiobook.available) abPlay(resume.c, resume.p);
+    else if (!audiobook.available && state.ttsStatus === 'playing') speakCurrentParagraph();
+    updateTtsUi();
   }
 
   const chapterById = (id) => (window.NOVEL_DATA.chapters || []).find((c) => c.id === id);
@@ -905,7 +943,7 @@
     const a = audiobook.audio;
     clearTimeout(audiobook.gapTimer);
     const t = paraIndex < 0 ? 0 : (cue.starts[Math.min(paraIndex, cue.starts.length - 1)] || 0);
-    const src = `audio/ch${chapterId}.mp3`;
+    const src = `audio/${state.ttsVoice}/ch${chapterId}.mp3`;
     const needLoad = audiobook.chapterId !== chapterId || !a.src || !a.src.endsWith(src);
     audiobook.chapterId = chapterId;
     audiobook.paraIndex = paraIndex;
@@ -1006,7 +1044,7 @@
 
   // ---- Web Speech fallback ----
   const synth = window.speechSynthesis || null;
-  let cachedMaleVoice = null;
+  let cachedVoice = null; // { key: 'm'|'f', voice }
   let currentUtterance = null;
   const MALE_KEYWORDS = ['injoon', '인준', 'hyunsu', '현수', 'bongjin', '봉진', 'gookmin', '국민', 'male', '남성', '민수', '태민'];
   const NEURAL_RE = /natural|online|neural|premium|enhanced|wavenet|studio/i;
@@ -1016,35 +1054,21 @@
     return (synth.getVoices() || []).filter((v) => /^ko/i.test(v.lang || '') || /한국어|korean/i.test(v.name || ''));
   }
   const isLikelyMaleVoice = (v) => !!v && MALE_KEYWORDS.some((kw) => v.name.toLowerCase().includes(kw));
+  // Prefer voices matching the chosen gender, then neural/online quality
   function scoreVoice(v) {
     const n = v.name.toLowerCase();
-    return (isLikelyMaleVoice(v) ? 100 : 0) + (NEURAL_RE.test(n) ? 50 : 0) + (n.includes('google') ? 20 : 0) + (v.localService === false ? 10 : 0);
-  }
-  function selectBestKoreanMaleVoice() {
-    const ko = getKoreanVoices();
-    return ko.length ? ko.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a))[0] : null;
+    const genderMatch = isLikelyMaleVoice(v) === (state.ttsVoice === 'm');
+    return (genderMatch ? 100 : 0) + (NEURAL_RE.test(n) ? 50 : 0) + (n.includes('google') ? 20 : 0) + (v.localService === false ? 10 : 0);
   }
   function resolveTtsVoice() {
-    if (state.ttsVoiceURI) {
-      const picked = getKoreanVoices().find((v) => v.voiceURI === state.ttsVoiceURI);
-      if (picked) return { voice: picked, userPicked: true };
+    if (!cachedVoice || cachedVoice.key !== state.ttsVoice) {
+      const ko = getKoreanVoices();
+      cachedVoice = { key: state.ttsVoice, voice: ko.length ? ko.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a))[0] : null };
     }
-    cachedMaleVoice = cachedMaleVoice || selectBestKoreanMaleVoice();
-    return { voice: cachedMaleVoice, userPicked: false };
-  }
-  function populateVoiceSelect() {
-    if (!el.ttsVoiceSelect) return;
-    const ko = getKoreanVoices();
-    const opts = ['<option value="">자동 선택 (남성 · 자연스러운 음성 우선)</option>'];
-    ko.slice().sort((a, b) => scoreVoice(b) - scoreVoice(a)).forEach((v) => {
-      const label = v.name.replace(/^(Microsoft|Google|Apple)\s+/i, '').replace(/\s*-\s*Korean.*$/i, '') + (NEURAL_RE.test(v.name) ? ' ★' : '');
-      opts.push(`<option value="${escapeHtml(v.voiceURI)}"${v.voiceURI === state.ttsVoiceURI ? ' selected' : ''}>${escapeHtml(label)}</option>`);
-    });
-    el.ttsVoiceSelect.innerHTML = opts.join('');
-    if (el.ttsVoiceHint) el.ttsVoiceHint.textContent = ko.length ? `${ko.length}개 감지` : '한국어 음성 없음';
+    return cachedVoice.voice;
   }
   if (synth && typeof synth.onvoiceschanged !== 'undefined') {
-    synth.onvoiceschanged = () => { cachedMaleVoice = selectBestKoreanMaleVoice(); populateVoiceSelect(); };
+    synth.onvoiceschanged = () => { cachedVoice = null; };
   }
 
   function cancelSpeechInternal() {
@@ -1072,10 +1096,11 @@
       if (k >= chunks.length) { onDone(); return; }
       const utter = new SpeechSynthesisUtterance(chunks[k++]);
       utter.lang = 'ko-KR';
-      const { voice, userPicked } = resolveTtsVoice();
+      const voice = resolveTtsVoice();
       if (voice) utter.voice = voice;
-      utter.pitch = isLikelyMaleVoice(voice) ? 0.94 : (userPicked ? 1.0 : 0.78);
-      utter.rate = state.ttsRate * 0.95;
+      // Male set reads low and slow; if only a female system voice exists for 'm', drop pitch to approximate
+      utter.pitch = state.ttsVoice === 'm' ? (isLikelyMaleVoice(voice) ? 0.85 : 0.72) : 0.95;
+      utter.rate = state.ttsRate * (state.ttsVoice === 'm' ? 0.85 : 0.92);
       const finish = () => { if (currentUtterance !== utter || state.ttsStatus !== 'playing') return; speakNext(); };
       utter.onend = finish;
       utter.onerror = (ev) => { if (currentUtterance !== utter) return; if (ev.error === 'interrupted' || ev.error === 'canceled') return; finish(); };
@@ -1260,7 +1285,7 @@
       const page = state.pages[state.currentPageIndex];
       chapLabel = (page && page.chapterNumber) || '';
     }
-    const voiceTag = audiobook.available ? ' · 인준' : '';
+    const voiceTag = audiobook.available ? (state.ttsVoice === 'f' ? ' · 여성' : ' · 남성') : '';
     if (isPlaying) el.ttsStatusText.textContent = `${chapLabel} 낭독 중${voiceTag}`;
     else if (isPaused) el.ttsStatusText.textContent = `일시정지 · ${chapLabel}`;
     else el.ttsStatusText.textContent = '문단을 탭하면 그곳부터 읽어요';
@@ -1366,7 +1391,7 @@
     // Page zones — while the audiobook capsule is open, tapping a paragraph reads from there
     const zoneClick = (fallback) => (e) => {
       // The zone overlay sits above the page, so cover/credits buttons underneath get the tap forwarded
-      const btn = (document.elementsFromPoint(e.clientX, e.clientY) || []).find((n) => n.matches && n.matches('#currentPage [data-action]'));
+      const btn = (document.elementsFromPoint(e.clientX, e.clientY) || []).find((n) => n.matches && n.matches('#currentPage [data-action], #currentPage a[href]'));
       if (btn) { btn.click(); return; }
       const para = paragraphUnderPointer(e);
       if (para) {
@@ -1382,7 +1407,7 @@
     // Scroll mode: paragraphs are directly tappable while the capsule is open
     el.scrollContent.addEventListener('click', (e) => {
       const p = e.target.closest('.scroll-chapter-block p');
-      if (!p) { if (!e.target.closest('button')) toggleDeck(); return; }
+      if (!p) { if (!e.target.closest('button, a')) toggleDeck(); return; }
       if (el.audioCapsule.classList.contains('hidden')) { toggleDeck(); return; }
       const sec = p.closest('.scroll-chapter-block');
       const idx = Array.from(sec.querySelectorAll('p')).indexOf(p);
@@ -1490,13 +1515,7 @@
     el.btnTtsStop.addEventListener('click', ttsStop);
     el.btnTtsSpeed.addEventListener('click', cycleTtsSpeed);
     el.btnTtsClose.addEventListener('click', ttsClose);
-    if (el.ttsVoiceSelect) {
-      el.ttsVoiceSelect.addEventListener('change', (e) => {
-        state.ttsVoiceURI = e.target.value || '';
-        saveSettings();
-        if (!audiobook.available && state.ttsStatus === 'playing') speakCurrentParagraph();
-      });
-    }
+    document.querySelectorAll('[data-voice-select]').forEach((btn) => btn.addEventListener('click', () => setTtsVoice(btn.getAttribute('data-voice-select'))));
 
     window.addEventListener('beforeunload', () => { cancelSpeechInternal(); });
 
@@ -1526,7 +1545,6 @@
     if (state.mode === 'scroll') updateModeView();
     updateIndicators();
     bindEvents();
-    populateVoiceSelect();
     initAudiobook();
     checkSavedProgressToast();
 

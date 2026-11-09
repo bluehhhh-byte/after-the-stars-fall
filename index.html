@@ -203,11 +203,12 @@
     </div>
 
     <div class="setting-group">
-      <label class="setting-label" for="ttsVoiceSelect">낭독 음성 <span id="ttsVoiceHint" class="val"></span></label>
-      <select id="ttsVoiceSelect" class="voice-select" aria-label="낭독 음성 선택">
-        <option value="">자동 선택</option>
-      </select>
-      <p id="ttsVoiceNote" class="setting-hint">오디오북은 내장 신경망 남성 음성(InJoon)으로 재생됩니다. 이 목록은 오디오 파일을 불러올 수 없을 때 쓰는 브라우저 음성 대체 설정입니다.</p>
+      <label class="setting-label">낭독 음성</label>
+      <div class="font-grid">
+        <button class="font-chip active" data-voice-select="m">남성</button>
+        <button class="font-chip" data-voice-select="f">여성</button>
+      </div>
+      <p id="ttsVoiceNote" class="setting-hint">내장 신경망 음성으로 읽습니다. 남성은 낮고 느리게 읊조리는 톤, 여성은 차분한 톤입니다.</p>
     </div>
   </section>
 
